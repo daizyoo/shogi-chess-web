@@ -1,9 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import type { BoardState, Position, Piece as PieceType } from '@/lib/types'
+import type { BoardState, Position, Piece as PieceType, PieceType as PieceTypeName, Player } from '@/lib/types'
 import { getPossibleMoves } from '@/lib/game/board'
+import { canPromoteChess } from '@/lib/game/promotion'
 import Piece from './Piece'
+import PromotionModal from './PromotionModal'
 import styles from '@/styles/board.module.css'
 
 interface BoardProps {
@@ -23,6 +25,12 @@ export default function Board({
 }: BoardProps) {
   const [selectedSquare, setSelectedSquare] = useState<Position | null>(null)
   const [highlightedSquares, setHighlightedSquares] = useState<Position[]>([])
+  const [promotionState, setPromotionState] = useState<{
+    from: Position
+    to: Position
+    player: Player
+  } | null>(null)
+
 
   const boardSize = board.length
   const boardSizeClass = boardSize === 8 ? styles.board8x8 : styles.board9x9
@@ -49,7 +57,19 @@ export default function Board({
       )
 
       if (isHighlighted && onMove) {
-        onMove(selectedSquare, clickedPos)
+        // チェックプロモーション判定
+        const movingPiece = board[selectedSquare.row][selectedSquare.col]
+        if (movingPiece && canPromoteChess(movingPiece, clickedPos, boardSize)) {
+          // プロモーションモーダルを表示
+          setPromotionState({
+            from: selectedSquare,
+            to: clickedPos,
+            player: movingPiece.player,
+          })
+        } else {
+          // 通常の移動
+          onMove(selectedSquare, clickedPos)
+        }
         setSelectedSquare(null)
         setHighlightedSquares([])
         return
@@ -86,34 +106,53 @@ export default function Board({
     return dropPositions.some((pos) => pos.row === row && pos.col === col)
   }
 
+  const handlePromotionSelect = (pieceType: PieceTypeName) => {
+    if (promotionState && onMove) {
+      // プロモーション後の移動を実行
+      // Note: 実際のプロモーション処理はゲームロジック側で行う
+      onMove(promotionState.from, promotionState.to)
+      setPromotionState(null)
+    }
+  }
+
   return (
-    <div className={`${styles.board} ${boardSizeClass}`}>
-      {board.map((rowPieces, rowIndex) =>
-        rowPieces.map((piece, colIndex) => {
-          const selected = isSquareSelected(rowIndex, colIndex)
-          const highlighted = isSquareHighlighted(rowIndex, colIndex)
-          const droppable = isSquareDroppable(rowIndex, colIndex)
+    <>
+      <div className={`${styles.board} ${boardSizeClass}`}>
+        {board.map((rowPieces, rowIndex) =>
+          rowPieces.map((piece, colIndex) => {
+            const selected = isSquareSelected(rowIndex, colIndex)
+            const highlighted = isSquareHighlighted(rowIndex, colIndex)
+            const droppable = isSquareDroppable(rowIndex, colIndex)
 
-          // 敵駒がある場所かチェック
-          const hasEnemyPiece = highlighted && piece && piece.player !== currentPlayer
+            // 敵駒がある場所かチェック
+            const hasEnemyPiece = highlighted && piece && piece.player !== currentPlayer
 
-          // 市松模様の色を決定
-          const isDark = (rowIndex + colIndex) % 2 === 1
-          const squareColorClass = isDark ? styles.squareDark : styles.squareLight
+            // 市松模様の色を決定
+            const isDark = (rowIndex + colIndex) % 2 === 1
+            const squareColorClass = isDark ? styles.squareDark : styles.squareLight
 
-          return (
-            <div
-              key={`${rowIndex}-${colIndex}`}
-              className={`${styles.square} ${squareColorClass} ${selected ? styles.squareSelected : ''
-                } ${hasEnemyPiece ? styles.squareCapture : highlighted ? styles.squareHighlight : ''} ${droppable ? styles.squareDroppable : ''
-                }`}
-              onClick={() => handleSquareClick(rowIndex, colIndex)}
-            >
-              {piece && <Piece piece={piece} />}
-            </div>
-          )
-        })
+            return (
+              <div
+                key={`${rowIndex}-${colIndex}`}
+                className={`${styles.square} ${squareColorClass} ${selected ? styles.squareSelected : ''
+                  } ${hasEnemyPiece ? styles.squareCapture : highlighted ? styles.squareHighlight : ''} ${droppable ? styles.squareDroppable : ''
+                  }`}
+                onClick={() => handleSquareClick(rowIndex, colIndex)}
+              >
+                {piece && <Piece piece={piece} />}
+              </div>
+            )
+          })
+        )}
+      </div>
+
+      {/* プロモーションモーダル */}
+      {promotionState && (
+        <PromotionModal
+          player={promotionState.player}
+          onSelect={handlePromotionSelect}
+        />
       )}
-    </div>
+    </>
   )
 }
