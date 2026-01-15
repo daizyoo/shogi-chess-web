@@ -27,6 +27,8 @@ export default function LocalGamePage() {
     from: Position
     to: Position
     piece: any
+    promotionType?: 'shogi' | 'chess' // 将棋かチェスか
+    promotionPieceType?: PieceType // チェスの場合の選択した駒
   } | null>(null)
 
   const hasHandPieces = boardType === 'shogi' || boardType === 'hybrid'
@@ -62,7 +64,7 @@ export default function LocalGamePage() {
     }
   }, [gameState, mode, isAIThinking])
 
-  const executeMoveWithPromotion = (from: Position, to: Position, promote: boolean) => {
+  const executeMoveWithPromotion = (from: Position, to: Position, promote: boolean | PieceType) => {
     if (!gameState) return
 
     const piece = gameState.board[from.row][from.col]
@@ -71,8 +73,17 @@ export default function LocalGamePage() {
     const newBoard = gameState.board.map((row) => [...row])
     const capturedPiece = newBoard[to.row][to.col]
 
-    // 駒を移動（成る場合はpromoted = true）
-    newBoard[to.row][to.col] = promote ? { ...piece, promoted: true } : piece
+    // 駒を移動
+    if (typeof promote === 'string') {
+      // チェスプロモーション: 駒のtypeを変更
+      newBoard[to.row][to.col] = { ...piece, type: promote as PieceType }
+    } else if (promote === true) {
+      // 将棋の成り: promotedフラグを設定
+      newBoard[to.row][to.col] = { ...piece, promoted: true }
+    } else {
+      // 通常の移動
+      newBoard[to.row][to.col] = piece
+    }
     newBoard[from.row][from.col] = null
 
     const newHands = { ...gameState.hands }
@@ -95,7 +106,7 @@ export default function LocalGamePage() {
       to,
       piece,
       captured: capturedPiece || undefined,
-      promote,
+      promote: typeof promote === 'boolean' ? promote : true,
     }
 
     const nextTurn: Player = gameState.currentTurn === 1 ? 2 : 1
@@ -123,25 +134,43 @@ export default function LocalGamePage() {
     const piece = gameState.board[from.row][from.col]
     if (!piece) return
 
-    // 成りが可能かチェック
     const boardSize = gameState.board.length
-    const canPromoteMove = !piece.promoted && canPromoteOnMove(from, to, piece.player, piece.type, boardSize)
-    const mustPromoteMove = !piece.promoted && mustPromote(to, piece.player, piece.type, boardSize)
 
-    // 必ず成る場合
-    if (mustPromoteMove) {
-      executeMoveWithPromotion(from, to, true)
-      return
+    // チェスプロモーションチェック（チェス盤またはハイブリッド盤の場合）
+    if (boardType === 'chess' || boardType === 'hybrid') {
+      const { canPromoteChess } = require('@/lib/game/promotion')
+      if (canPromoteChess(piece, to, boardSize)) {
+        setPromotionDialog({
+          from,
+          to,
+          piece,
+          promotionType: 'chess',
+        })
+        return
+      }
     }
 
-    // 成るか選択する場合
-    if (canPromoteMove && hasHandPieces) {
-      setPromotionDialog({
-        from,
-        to,
-        piece,
-      })
-      return
+    // 将棋の成りチェック（将棋盤またはハイブリッド盤の場合）
+    if (boardType === 'shogi' || boardType === 'hybrid') {
+      const canPromoteMove = !piece.promoted && canPromoteOnMove(from, to, piece.player, piece.type, boardSize)
+      const mustPromoteMove = !piece.promoted && mustPromote(to, piece.player, piece.type, boardSize)
+
+      // 必ず成る場合
+      if (mustPromoteMove) {
+        executeMoveWithPromotion(from, to, true)
+        return
+      }
+
+      // 成るか選択する場合
+      if (canPromoteMove && hasHandPieces) {
+        setPromotionDialog({
+          from,
+          to,
+          piece,
+          promotionType: 'shogi',
+        })
+        return
+      }
     }
 
     // 通常の移動
@@ -353,7 +382,7 @@ export default function LocalGamePage() {
         </div>
       )}
 
-      {/* 成り選択ダイアログ */}
+      {/* プロモーションダイアログ */}
       {promotionDialog && (
         <div
           style={{
@@ -362,14 +391,11 @@ export default function LocalGamePage() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 1000,
-          }}
-          onClick={() => {
-            executeMoveWithPromotion(promotionDialog.from, promotionDialog.to, false)
           }}
         >
           <div
@@ -379,31 +405,62 @@ export default function LocalGamePage() {
               maxWidth: '400px',
               textAlign: 'center',
             }}
-            onClick={(e) => e.stopPropagation()}
           >
-            <h2 style={{ fontSize: 'var(--font-size-xl)', marginBottom: 'var(--spacing-lg)' }}>
-              成りますか？
-            </h2>
-            <div style={{ display: 'flex', gap: 'var(--spacing-md)', justifyContent: 'center' }}>
-              <button
-                className="btn btn-primary"
-                style={{ flex: 1 }}
-                onClick={() => {
-                  executeMoveWithPromotion(promotionDialog.from, promotionDialog.to, true)
-                }}
-              >
-                成る
-              </button>
-              <button
-                className="btn btn-outline"
-                style={{ flex: 1 }}
-                onClick={() => {
-                  executeMoveWithPromotion(promotionDialog.from, promotionDialog.to, false)
-                }}
-              >
-                成らない
-              </button>
-            </div>
+            {promotionDialog.promotionType === 'chess' ? (
+              // チェスプロモーション
+              <>
+                <h3 style={{ marginBottom: 'var(--spacing-lg)', fontSize: 'var(--font-size-xl)' }}>
+                  昇格する駒を選択
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => executeMoveWithPromotion(promotionDialog.from, promotionDialog.to, 'chess_queen')}
+                  >
+                    クイーン
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => executeMoveWithPromotion(promotionDialog.from, promotionDialog.to, 'chess_rook')}
+                  >
+                    ルーク
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => executeMoveWithPromotion(promotionDialog.from, promotionDialog.to, 'chess_bishop')}
+                  >
+                    ビショップ
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => executeMoveWithPromotion(promotionDialog.from, promotionDialog.to, 'chess_knight')}
+                  >
+                    ナイト
+                  </button>
+                </div>
+              </>
+            ) : (
+              // 将棋の成り
+              <>
+                <h3 style={{ marginBottom: 'var(--spacing-lg)', fontSize: 'var(--font-size-xl)' }}>
+                  成りますか？
+                </h3>
+                <div style={{ display: 'flex', gap: 'var(--spacing-md)', justifyContent: 'center' }}>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => executeMoveWithPromotion(promotionDialog.from, promotionDialog.to, true)}
+                  >
+                    成る
+                  </button>
+                  <button
+                    className="btn btn-outline"
+                    onClick={() => executeMoveWithPromotion(promotionDialog.from, promotionDialog.to, false)}
+                  >
+                    成らない
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

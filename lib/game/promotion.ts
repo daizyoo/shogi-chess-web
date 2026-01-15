@@ -59,3 +59,28 @@ export function getPromotedPieceType(pieceType: PieceType): PieceType {
   // 成り駒の対応表（実際は promoted フラグを使用）
   return pieceType
 }
+
+// === チェスプロモーション ===
+
+// チェスのポーンがプロモーション可能かチェック
+export function canPromoteChess(
+  piece: { type: PieceType; player: Player },
+  to: Position,
+  boardSize: number
+): boolean {
+  // ポーンのみプロモーション可能
+  if (piece.type !== 'pawn') return false
+
+  // プレイヤー1は最上行（row 0）に到達でプロモーション
+  if (piece.player === 1 && to.row === 0) return true
+
+  // プレイヤー2は最下行（row boardSize-1）に到達でプロモーション
+  if (piece.player === 2 && to.row === boardSize - 1) return true
+
+  return false
+}
+
+// チェスプロモーションの選択肢を取得
+export function getChessPromotionOptions(): PieceType[] {
+  return ['chess_queen', 'chess_rook', 'chess_bishop', 'chess_knight']
+}
