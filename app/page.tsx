@@ -1,12 +1,10 @@
 'use client'
 
-import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import RoomList from '@/components/RoomList'
 
 export default function HomePage() {
   const router = useRouter()
-  const [showCreateModal, setShowCreateModal] = useState(false)
 
   return (
     <main className="container" style={{ paddingTop: '2rem', paddingBottom: '2rem' }}>
@@ -51,19 +49,9 @@ export default function HomePage() {
       {/* オンラインゲーム
 セクション */}
       <div className="card" style={{ marginBottom: 'var(--spacing-xl)' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 'var(--spacing-lg)',
-          }}
-        >
-          <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: '600' }}>ルーム一覧</h2>
-          <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
-            + ルームを作成
-          </button>
-        </div>
+        <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: '600', marginBottom: 'var(--spacing-lg)' }}>
+          ルーム一覧
+        </h2>
 
         <RoomList />
       </div>
