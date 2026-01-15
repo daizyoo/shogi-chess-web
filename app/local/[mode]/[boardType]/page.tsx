@@ -290,6 +290,7 @@ export default function LocalGamePage() {
           onMove={selectedHandPiece ? undefined : handleMove}
           onDrop={selectedHandPiece ? handleDrop : undefined}
           dropPositions={dropPositions}
+          onPromotionSelect={(from, to, pieceType) => executeMoveWithPromotion(from, to, pieceType)}
         />
 
         {hasHandPieces && (

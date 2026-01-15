@@ -14,6 +14,7 @@ interface BoardProps {
   onMove?: (from: Position, to: Position) => void
   onDrop?: (row: number, col: number) => void
   dropPositions?: Position[]
+  onPromotionSelect?: (from: Position, to: Position, pieceType: PieceTypeName) => void
 }
 
 export default function Board({
@@ -21,7 +22,8 @@ export default function Board({
   currentPlayer = 1,
   onMove,
   onDrop,
-  dropPositions = []
+  dropPositions = [],
+  onPromotionSelect
 }: BoardProps) {
   const [selectedSquare, setSelectedSquare] = useState<Position | null>(null)
   const [highlightedSquares, setHighlightedSquares] = useState<Position[]>([])
@@ -107,10 +109,14 @@ export default function Board({
   }
 
   const handlePromotionSelect = (pieceType: PieceTypeName) => {
-    if (promotionState && onMove) {
-      // プロモーション後の移動を実行
-      // Note: 実際のプロモーション処理はゲームロジック側で行う
-      onMove(promotionState.from, promotionState.to)
+    if (promotionState) {
+      if (onPromotionSelect) {
+        // 親コンポーネントにプロモーション選択を通知
+        onPromotionSelect(promotionState.from, promotionState.to, pieceType)
+      } else if (onMove) {
+        // フォールバック: 通常の移動として処理
+        onMove(promotionState.from, promotionState.to)
+      }
       setPromotionState(null)
     }
   }
