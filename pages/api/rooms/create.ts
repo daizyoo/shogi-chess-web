@@ -24,8 +24,8 @@ export default async function handler(
     }
 
     // ルームを作成
-    const { data: room, error: roomError } = await supabase
-      .from('rooms')
+    const { data: room, error: roomError } = await (supabase
+      .from('rooms') as any)
       .insert({
         name,
         board_type: boardType,
@@ -42,8 +42,8 @@ export default async function handler(
 
     // 初期ゲーム状態を作成
     const initialBoard = createInitialBoard(boardType as any)
-    const { error: stateError } = await supabase
-      .from('game_states')
+    const { error: stateError } = await (supabase
+      .from('game_states') as any)
       .insert({
         room_id: room.id,
         board: initialBoard as any,
