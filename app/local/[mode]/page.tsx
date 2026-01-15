@@ -6,6 +6,11 @@ import { useParams, useRouter } from 'next/navigation'
 export default function SelectBoardPage() {
   const params = useParams()
   const router = useRouter()
+
+  if (!params) {
+    return null
+  }
+
   const mode = params.mode as string
 
   const boardTypes = [

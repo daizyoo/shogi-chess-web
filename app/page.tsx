@@ -8,10 +8,6 @@ export default function HomePage() {
   const router = useRouter()
   const [showCreateModal, setShowCreateModal] = useState(false)
 
-  const handleJoinRoom = (roomId: string) => {
-    window.location.href = `/room/${roomId}`
-  }
-
   return (
     <main className="container" style={{ paddingTop: '2rem', paddingBottom: '2rem' }}>
       <h1
@@ -52,7 +48,8 @@ export default function HomePage() {
         </p>
       </div>
 
-      {/* オンラインゲームセクション */}
+      {/* オンラインゲーム
+セクション */}
       <div className="card" style={{ marginBottom: 'var(--spacing-xl)' }}>
         <div
           style={{
@@ -68,7 +65,7 @@ export default function HomePage() {
           </button>
         </div>
 
-        <RoomList onJoinRoom={handleJoinRoom} />
+        <RoomList />
       </div>
 
       <div className="text-center text-muted">

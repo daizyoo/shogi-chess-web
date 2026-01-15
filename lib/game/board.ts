@@ -1,4 +1,4 @@
-import type { BoardState, Piece, Position, PieceType, Player } from './types'
+import type { BoardState, Piece, Position, PieceType, Player } from '../types'
 
 // 盤のサイズを取得
 export function getBoardSize(boardType: 'shogi' | 'chess' | 'hybrid' | 'custom'): number {

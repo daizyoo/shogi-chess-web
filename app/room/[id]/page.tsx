@@ -12,6 +12,11 @@ import type { GameState, Position } from '@/lib/types'
 export default function RoomPage() {
   const params = useParams()
   const router = useRouter()
+
+  if (!params) {
+    return null
+  }
+
   const roomId = params.id as string
 
   const [gameState, setGameState] = useState<GameState | null>(null)
@@ -49,7 +54,7 @@ export default function RoomPage() {
         .from('rooms')
         .select('*')
         .eq('id', roomId)
-        .single()
+        .single() as any
 
       if (room) {
         setRoomInfo(room)
@@ -60,7 +65,7 @@ export default function RoomPage() {
         .from('game_states')
         .select('*')
         .eq('room_id', roomId)
-        .single()
+        .single() as any
 
       if (state) {
         setGameState({

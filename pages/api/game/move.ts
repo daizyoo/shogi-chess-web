@@ -23,7 +23,7 @@ export default async function handler(
     }
 
     // 手を記録
-    await supabase.from('moves').insert({
+    await (supabase.from('moves') as any).insert({
       room_id: roomId,
       player: move.piece.player,
       from_row: move.from?.row ?? null,
@@ -46,8 +46,8 @@ export default async function handler(
       updateData.winner = winner
     }
 
-    const { error } = await supabase
-      .from('game_states')
+    const { error } = await (supabase
+      .from('game_states') as any)
       .update(updateData)
       .eq('room_id', roomId)
 
@@ -56,15 +56,15 @@ export default async function handler(
     }
 
     // ルームのターンを更新
-    const { data: room } = await supabase
+    const { data: room } = await (supabase
       .from('rooms')
-      .select('current_turn')
+      .select('current_turn') as any)
       .eq('id', roomId)
       .single()
 
     if (room) {
-      await supabase
-        .from('rooms')
+      await (supabase
+        .from('rooms') as any)
         .update({
           current_turn: room.current_turn === 1 ? 2 : 1,
           status: winner ? 'finished' : 'playing',

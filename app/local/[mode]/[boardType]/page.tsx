@@ -13,6 +13,11 @@ import HandPieces from '@/components/HandPieces'
 export default function LocalGamePage() {
   const params = useParams()
   const router = useRouter()
+
+  if (!params) {
+    return null
+  }
+
   const mode = params.mode as string
   const boardType = (params.boardType as BoardType) || 'shogi'
   const [gameState, setGameState] = useState<GameState | null>(null)

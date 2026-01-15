@@ -27,7 +27,7 @@ export default async function handler(
       .from('rooms')
       .select('*')
       .eq('id', roomId)
-      .single()
+      .single() as any
 
     if (fetchError || !room) {
       return res.status(404).json({ error: 'Room not found' })
@@ -39,10 +39,10 @@ export default async function handler(
     }
 
     // プレイヤー2として参加
-    const { data: updatedRoom, error: updateError } = await supabase
-      .from('rooms')
+    const { data: updatedRoom, error: updateError } = await (supabase
+      .from('rooms') as any)
       .update({
-        player2_id: playerId || \`player-\${Date.now()}\`,
+        player2_id: playerId || `player-${Date.now()}`,
         status: 'playing',
       })
       .eq('id', roomId)
@@ -54,8 +54,8 @@ export default async function handler(
     }
 
     // ゲーム状態を開始
-    await supabase
-      .from('game_states')
+    await (supabase
+      .from('game_states') as any)
       .update({ status: 'playing' })
       .eq('room_id', roomId)
 
