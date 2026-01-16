@@ -21,6 +21,7 @@ export interface Database {
           current_turn: number
           created_at: string
           updated_at: string
+          last_activity_at: string
         }
         Insert: {
           id?: string
@@ -33,6 +34,7 @@ export interface Database {
           current_turn?: number
           created_at?: string
           updated_at?: string
+          last_activity_at?: string
         }
         Update: {
           id?: string
@@ -45,6 +47,7 @@ export interface Database {
           current_turn?: number
           created_at?: string
           updated_at?: string
+          last_activity_at?: string
         }
       }
       game_states: {

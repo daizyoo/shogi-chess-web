@@ -68,6 +68,7 @@ export default async function handler(
         .update({
           current_turn: room.current_turn === 1 ? 2 : 1,
           status: winner ? 'finished' : 'playing',
+          last_activity_at: new Date().toISOString(),
         })
         .eq('id', roomId)
     }

@@ -67,6 +67,13 @@ export default function RoomList() {
     if (!name) return
 
     try {
+      // プレイヤーIDを取得または生成
+      let playerId = localStorage.getItem('playerId')
+      if (!playerId) {
+        playerId = `player-${Date.now()}-${Math.random().toString(36).substring(7)}`
+        localStorage.setItem('playerId', playerId)
+      }
+
       const response = await fetch('/api/rooms/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -74,6 +81,7 @@ export default function RoomList() {
           name,
           boardType: 'shogi',
           hasHandPieces: true,
+          playerId, // プレイヤーIDを送信
         }),
       })
 

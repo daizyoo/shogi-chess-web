@@ -44,6 +44,7 @@ export default async function handler(
       .update({
         player2_id: playerId || `player-${Date.now()}`,
         status: 'playing',
+        last_activity_at: new Date().toISOString(),
       })
       .eq('id', roomId)
       .select()

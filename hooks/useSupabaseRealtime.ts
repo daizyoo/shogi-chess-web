@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import type { GameState } from '@/lib/types'
@@ -18,6 +18,18 @@ export function useSupabaseRealtime({
 }: UseSupabaseRealtimeOptions) {
   const [channel, setChannel] = useState<RealtimeChannel | null>(null)
   const [isConnected, setIsConnected] = useState(false)
+
+  // Use refs to avoid dependency issues
+  const onGameStateUpdateRef = useRef(onGameStateUpdate)
+  const onPlayerJoinRef = useRef(onPlayerJoin)
+  const onPlayerLeaveRef = useRef(onPlayerLeave)
+
+  // Update refs when callbacks change
+  useEffect(() => {
+    onGameStateUpdateRef.current = onGameStateUpdate
+    onPlayerJoinRef.current = onPlayerJoin
+    onPlayerLeaveRef.current = onPlayerLeave
+  }, [onGameStateUpdate, onPlayerJoin, onPlayerLeave])
 
   useEffect(() => {
     if (!roomId) return
@@ -39,17 +51,24 @@ export function useSupabaseRealtime({
           table: 'game_states',
           filter: `room_id=eq.${roomId}`,
         },
-        (payload) => {
-          if (onGameStateUpdate && payload.new) {
+        async (payload) => {
+          if (onGameStateUpdateRef.current && payload.new) {
+            // roomsテーブルからcurrent_turnを取得
+            const { data: room } = await supabase
+              .from('rooms')
+              .select('current_turn')
+              .eq('id', roomId)
+              .single() as any
+
             const gameState: GameState = {
               board: payload.new.board as any,
               hands: payload.new.hands as any,
-              currentTurn: 1, // TODO: 適切に設定
+              currentTurn: room?.current_turn || 1,
               moves: [],
               status: payload.new.status as any,
               winner: payload.new.winner as any,
             }
-            onGameStateUpdate(gameState)
+            onGameStateUpdateRef.current(gameState)
           }
         }
       )
@@ -62,24 +81,34 @@ export function useSupabaseRealtime({
           filter: `id=eq.${roomId}`,
         },
         (payload) => {
+          console.log('Rooms table UPDATE event received:', payload)
           // プレイヤーの参加/退出を検知
           if (payload.new && payload.old) {
             const newPlayer2 = payload.new.player2_id
             const oldPlayer2 = (payload.old as any).player2_id
 
-            if (newPlayer2 && !oldPlayer2 && onPlayerJoin) {
-              onPlayerJoin(newPlayer2 as string)
-            } else if (!newPlayer2 && oldPlayer2 && onPlayerLeave) {
-              onPlayerLeave(oldPlayer2 as string)
+            console.log('Player2 change detected:', { oldPlayer2, newPlayer2 })
+
+            if (newPlayer2 && !oldPlayer2 && onPlayerJoinRef.current) {
+              console.log('Calling onPlayerJoin callback')
+              onPlayerJoinRef.current(newPlayer2 as string)
+            } else if (!newPlayer2 && oldPlayer2 && onPlayerLeaveRef.current) {
+              console.log('Calling onPlayerLeave callback')
+              onPlayerLeaveRef.current(oldPlayer2 as string)
             }
           }
         }
       )
       .subscribe((status) => {
+        console.log('Realtime subscription status:', status, 'for room:', roomId)
         if (status === 'SUBSCRIBED') {
           setIsConnected(true)
+          console.log('Successfully subscribed to room updates')
         } else if (status === 'CLOSED') {
           setIsConnected(false)
+          console.log('Subscription closed')
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('Channel error occurred')
         }
       })
 
@@ -89,7 +118,7 @@ export function useSupabaseRealtime({
       roomChannel.unsubscribe()
       setIsConnected(false)
     }
-  }, [roomId, onGameStateUpdate, onPlayerJoin, onPlayerLeave])
+  }, [roomId]) // Only roomId as dependency
 
   const sendMove = useCallback(
     async (move: any) => {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime'
 import { supabase } from '@/lib/supabase/client'
@@ -23,13 +23,78 @@ export default function RoomPage() {
   const [roomInfo, setRoomInfo] = useState<any>(null)
   const [myPlayerId, setMyPlayerId] = useState<string>('')
   const [loading, setLoading] = useState(true)
+  const [roomDeleted, setRoomDeleted] = useState(false)
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Memoize loadRoomData to prevent recreation on every render
+  // Reload room data - use ref to prevent infinite loop
+  const loadRoomDataRef = useRef<() => Promise<void>>()
+
+  const loadRoomData = useCallback(async () => {
+    try {
+      // ルーム情報を取得
+      const { data: room } = await supabase
+        .from('rooms')
+        .select('*')
+        .eq('id', roomId)
+        .single() as any
+
+      if (!room) {
+        setRoomDeleted(true) // Room not found
+        return
+      }
+
+      setRoomInfo(room)
+
+      // ゲーム状態を取得
+      const { data: state } = await supabase
+        .from('game_states')
+        .select('*')
+        .eq('room_id', roomId)
+        .single() as any
+
+      if (state) {
+        setGameState({
+          board: state.board as any,
+          hands: state.hands as any,
+          currentTurn: room.current_turn || 1,
+          moves: [],
+          status: state.status as any,
+          winner: state.winner as any,
+        })
+      } else {
+        // Game state not found, but room exists. This might be a new room.
+        // Or if room was deleted, it would have been caught above.
+        // For now, if state is null, we assume room is valid but game not started.
+        // The initial state should be set by the room creation process.
+        // If this happens, it's an inconsistency, so we might treat it as room deleted.
+        setRoomDeleted(true)
+      }
+    } catch (error) {
+      // Error loading room data, assume room is deleted or inaccessible
+      setRoomDeleted(true)
+    } finally {
+      setLoading(false)
+    }
+  }, [roomId])
+
+  loadRoomDataRef.current = loadRoomData
+
+  // Memoize callback to prevent re-subscriptions
+  const handleGameStateUpdate = useCallback((newState: GameState) => {
+    setGameState(newState)
+  }, [])
+
+  // Reload room data when a player joins
+  const handlePlayerJoin = useCallback(() => {
+    loadRoomDataRef.current?.()
+  }, [])
 
   // Supabase Realtimeを使用
   const { isConnected } = useSupabaseRealtime({
     roomId,
-    onGameStateUpdate: (newState) => {
-      setGameState(newState)
-    },
+    onGameStateUpdate: handleGameStateUpdate,
+    onPlayerJoin: handlePlayerJoin,
   })
 
   useEffect(() => {
@@ -44,45 +109,44 @@ export default function RoomPage() {
     setMyPlayerId(playerId)
 
     // 初期データを読み込み
-    loadRoomData()
+    loadRoomDataRef.current?.()
   }, [roomId])
 
-  const loadRoomData = async () => {
-    try {
-      // ルーム情報を取得
-      const { data: room } = await supabase
-        .from('rooms')
-        .select('*')
-        .eq('id', roomId)
-        .single() as any
+  // ハートビート機能：定期的にルームのアクティビティを更新
+  useEffect(() => {
+    if (!roomId) return
 
-      if (room) {
-        setRoomInfo(room)
-      }
+    // ハートビート間隔（秒）を環境変数から取得（デフォルト: 60秒）
+    const intervalSeconds = parseInt(
+      process.env.NEXT_PUBLIC_HEARTBEAT_INTERVAL_SECONDS || '60',
+      10
+    )
 
-      // ゲーム状態を取得
-      const { data: state } = await supabase
-        .from('game_states')
-        .select('*')
-        .eq('room_id', roomId)
-        .single() as any
-
-      if (state) {
-        setGameState({
-          board: state.board as any,
-          hands: state.hands as any,
-          currentTurn: room?.current_turn || 1,
-          moves: [],
-          status: state.status as any,
-          winner: state.winner as any,
+    const sendHeartbeat = async () => {
+      try {
+        await fetch('/api/rooms/heartbeat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ roomId }),
         })
+      } catch (error) {
+        console.error('Heartbeat error:', error)
       }
-    } catch (error) {
-      console.error('Error loading room:', error)
-    } finally {
-      setLoading(false)
     }
-  }
+
+    // 初回ハートビート送信
+    sendHeartbeat()
+
+    // 定期的にハートビートを送信
+    heartbeatIntervalRef.current = setInterval(sendHeartbeat, intervalSeconds * 1000)
+
+    return () => {
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current)
+        heartbeatIntervalRef.current = null
+      }
+    }
+  }, [roomId]) // roomInfoを依存配列から削除
 
   const handleMove = async (from: Position, to: Position) => {
     if (!gameState || !roomInfo) return
@@ -92,6 +156,7 @@ export default function RoomPage() {
 
     // 自分のターンかチェック
     const myPlayerNumber = roomInfo.player1_id === myPlayerId ? 1 : 2
+
     if (gameState.currentTurn !== myPlayerNumber) {
       alert('あなたのターンではありません')
       return
@@ -118,7 +183,7 @@ export default function RoomPage() {
 
     // APIで手を送信
     try {
-      await fetch('/api/game/move', {
+      const response = await fetch('/api/game/move', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -129,6 +194,10 @@ export default function RoomPage() {
           winner: isGameOver ? myPlayerNumber : null,
         }),
       })
+
+      if (!response.ok) {
+        throw new Error('Move API failed')
+      }
 
       // ローカル状態を更新
       setGameState({
@@ -141,7 +210,19 @@ export default function RoomPage() {
       })
     } catch (error) {
       console.error('Error making move:', error)
-      alert('手の送信に失敗しました')
+      // ルームが削除された可能性をチェック
+      const { data: room } = await supabase
+        .from('rooms')
+        .select('id')
+        .eq('id', roomId)
+        .single() as any
+
+      if (!room) {
+        setRoomDeleted(true)
+        alert('ルームが削除されました。トップページに戻ります。')
+      } else {
+        alert('手の送信に失敗しました')
+      }
     }
   }
 
@@ -153,11 +234,15 @@ export default function RoomPage() {
     )
   }
 
-  if (!gameState || !roomInfo) {
+  if (roomDeleted || (!loading && (!gameState || !roomInfo))) {
     return (
       <div className="container text-center" style={{ paddingTop: '2rem' }}>
-        <p>ルームが見つかりません</p>
-        <button className="btn btn-secondary mt-md" onClick={() => router.push('/')}>
+        <h2 style={{ fontSize: 'var(--font-size-xl)', marginBottom: 'var(--spacing-lg)' }}>⚠️ ルームが削除されました</h2>
+        <p className="text-muted mb-lg">
+          このルームは非アクティブのため削除されました。<br />
+          新しいルームを作成するか、別のルームに参加してください。
+        </p>
+        <button className="btn btn-primary" onClick={() => router.push('/')}>
           トップに戻る
         </button>
       </div>

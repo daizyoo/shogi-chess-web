@@ -17,7 +17,7 @@ export default async function handler(
   }
 
   try {
-    const { name, boardType, hasHandPieces } = req.body
+    const { name, boardType, hasHandPieces, playerId } = req.body
 
     if (!name || !boardType) {
       return res.status(400).json({ error: 'Missing required fields' })
@@ -30,8 +30,10 @@ export default async function handler(
         name,
         board_type: boardType,
         has_hand_pieces: hasHandPieces ?? false,
+        player1_id: playerId || null, // 作成者をplayer1に設定
         status: 'waiting',
         current_turn: 1,
+        last_activity_at: new Date().toISOString(),
       })
       .select()
       .single()
