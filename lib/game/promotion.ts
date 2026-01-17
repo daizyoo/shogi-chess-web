@@ -68,8 +68,8 @@ export function canPromoteChess(
   to: Position,
   boardSize: number
 ): boolean {
-  // ポーンのみプロモーション可能
-  if (piece.type !== 'pawn') return false
+  // チェスポーンのみプロモーション可能
+  if (piece.type !== 'chess_pawn') return false
 
   // プレイヤー1は最上行（row 0）に到達でプロモーション
   if (piece.player === 1 && to.row === 0) return true
