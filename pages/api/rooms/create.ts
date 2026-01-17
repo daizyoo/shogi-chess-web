@@ -3,9 +3,16 @@ import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/supabase/types'
 import { createInitialBoard, getBoardSize } from '@/lib/game/board'
 
+// サーバーサイドではService Roleキーを使用（RLSをバイパス）
 const supabase = createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
 )
 
 export default async function handler(
