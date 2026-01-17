@@ -1,12 +1,17 @@
 import type { BoardState, Piece, Position, PieceType, Player } from '../types'
 
 // 盤のサイズを取得
-export function getBoardSize(boardType: 'shogi' | 'chess' | 'hybrid' | 'custom'): number {
+export function getBoardSize(boardType: 'shogi' | 'chess' | 'hybrid' | 'custom', customSize?: number): number {
+  if (boardType === 'custom' && customSize) return customSize
   return boardType === 'chess' ? 8 : 9
 }
 
 // 初期盤面を作成
-export function createInitialBoard(boardType: 'shogi' | 'chess' | 'hybrid' | 'custom'): BoardState {
+export function createInitialBoard(boardType: 'shogi' | 'chess' | 'hybrid' | 'custom', customData?: any): BoardState {
+  if (boardType === 'custom' && customData) {
+    return setupBoardFromStrings(customData.board)
+  }
+
   const size = getBoardSize(boardType)
   const board: BoardState = Array(size)
     .fill(null)
@@ -19,6 +24,36 @@ export function createInitialBoard(boardType: 'shogi' | 'chess' | 'hybrid' | 'cu
   } else if (boardType === 'hybrid') {
     return createHybridBoard()
   }
+
+  return board
+}
+
+// 文字列配列から盤面を構成する
+export function setupBoardFromStrings(boardStrings: string[]): BoardState {
+  const size = boardStrings.length
+  const board: BoardState = Array(size)
+    .fill(null)
+    .map(() => Array(size).fill(null))
+
+  const pieceMap: Record<string, PieceType> = {
+    'K': 'king', 'R': 'rook', 'B': 'bishop', 'G': 'gold', 'S': 'silver', 'N': 'knight', 'L': 'lance', 'P': 'pawn',
+    'CK': 'chess_king', 'CQ': 'chess_queen', 'CR': 'chess_rook', 'CB': 'chess_bishop', 'CN': 'chess_knight', 'CP': 'chess_pawn'
+  }
+
+  boardStrings.forEach((rowStr, r) => {
+    const cells = rowStr.trim().split(/\s+/)
+    cells.forEach((cell, c) => {
+      if (cell === '.') return
+
+      const player = cell === cell.toUpperCase() ? 1 : 2
+      const typeStr = cell.toUpperCase()
+      const type = pieceMap[typeStr]
+
+      if (type) {
+        board[r][c] = { type, player }
+      }
+    })
+  })
 
   return board
 }

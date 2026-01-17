@@ -1,7 +1,10 @@
 'use client'
 
+
 import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import BoardSelector from '@/components/BoardSelector'
+import type { CustomBoardData } from '@/lib/board/types'
 
 export default function SelectBoardPage() {
   const params = useParams()
@@ -21,6 +24,13 @@ export default function SelectBoardPage() {
 
   const handleSelectBoard = (boardType: string) => {
     router.push(`/local/${mode}/${boardType}`)
+  }
+
+  const handleCustomBoardSelect = (data: CustomBoardData) => {
+    // カスタムボードデータをURLパラメータやlocalStorage経由で渡す必要がある
+    // ここでは簡単にlocalStorageを使用する
+    localStorage.setItem('customBoard', JSON.stringify(data))
+    router.push(`/local/${mode}/custom`)
   }
 
   return (
@@ -46,7 +56,7 @@ export default function SelectBoardPage() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
           gap: 'var(--spacing-lg)',
           maxWidth: '900px',
-          margin: '0 auto',
+          margin: '0 auto mb-xl',
         }}
       >
         {boardTypes.map((board) => (
@@ -94,6 +104,10 @@ export default function SelectBoardPage() {
             </button>
           </div>
         ))}
+      </div>
+
+      <div style={{ maxWidth: '900px', margin: '3rem auto 0' }}>
+        <BoardSelector onSelect={handleCustomBoardSelect} />
       </div>
 
       <div className="text-center mt-xl">

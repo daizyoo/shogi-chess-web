@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime'
 import { supabase } from '@/lib/supabase/client'
@@ -23,13 +23,78 @@ export default function RoomPage() {
   const [roomInfo, setRoomInfo] = useState<any>(null)
   const [myPlayerId, setMyPlayerId] = useState<string>('')
   const [loading, setLoading] = useState(true)
+  const [roomDeleted, setRoomDeleted] = useState(false)
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Memoize loadRoomData to prevent recreation on every render
+  // Reload room data - use ref to prevent infinite loop
+  const loadRoomDataRef = useRef<() => Promise<void>>()
+
+  const loadRoomData = useCallback(async () => {
+    try {
+      // ルーム情報を取得
+      const { data: room } = await supabase
+        .from('rooms')
+        .select('*')
+        .eq('id', roomId)
+        .single() as any
+
+      if (!room) {
+        setRoomDeleted(true) // Room not found
+        return
+      }
+
+      setRoomInfo(room)
+
+      // ゲーム状態を取得
+      const { data: state } = await supabase
+        .from('game_states')
+        .select('*')
+        .eq('room_id', roomId)
+        .single() as any
+
+      if (state) {
+        setGameState({
+          board: state.board as any,
+          hands: state.hands as any,
+          currentTurn: room.current_turn || 1,
+          moves: [],
+          status: state.status as any,
+          winner: state.winner as any,
+        })
+      } else {
+        // Game state not found, but room exists. This might be a new room.
+        // Or if room was deleted, it would have been caught above.
+        // For now, if state is null, we assume room is valid but game not started.
+        // The initial state should be set by the room creation process.
+        // If this happens, it's an inconsistency, so we might treat it as room deleted.
+        setRoomDeleted(true)
+      }
+    } catch (error) {
+      // Error loading room data, assume room is deleted or inaccessible
+      setRoomDeleted(true)
+    } finally {
+      setLoading(false)
+    }
+  }, [roomId])
+
+  loadRoomDataRef.current = loadRoomData
+
+  // Memoize callback to prevent re-subscriptions
+  const handleGameStateUpdate = useCallback((newState: GameState) => {
+    setGameState(newState)
+  }, [])
+
+  // Reload room data when a player joins
+  const handlePlayerJoin = useCallback(() => {
+    loadRoomDataRef.current?.()
+  }, [])
 
   // Supabase Realtimeを使用
   const { isConnected } = useSupabaseRealtime({
     roomId,
-    onGameStateUpdate: (newState) => {
-      setGameState(newState)
-    },
+    onGameStateUpdate: handleGameStateUpdate,
+    onPlayerJoin: handlePlayerJoin,
   })
 
   useEffect(() => {
@@ -44,45 +109,44 @@ export default function RoomPage() {
     setMyPlayerId(playerId)
 
     // 初期データを読み込み
-    loadRoomData()
+    loadRoomDataRef.current?.()
   }, [roomId])
 
-  const loadRoomData = async () => {
-    try {
-      // ルーム情報を取得
-      const { data: room } = await supabase
-        .from('rooms')
-        .select('*')
-        .eq('id', roomId)
-        .single() as any
+  // ハートビート機能：定期的にルームのアクティビティを更新
+  useEffect(() => {
+    if (!roomId) return
 
-      if (room) {
-        setRoomInfo(room)
-      }
+    // ハートビート間隔（秒）を環境変数から取得（デフォルト: 60秒）
+    const intervalSeconds = parseInt(
+      process.env.NEXT_PUBLIC_HEARTBEAT_INTERVAL_SECONDS || '60',
+      10
+    )
 
-      // ゲーム状態を取得
-      const { data: state } = await supabase
-        .from('game_states')
-        .select('*')
-        .eq('room_id', roomId)
-        .single() as any
-
-      if (state) {
-        setGameState({
-          board: state.board as any,
-          hands: state.hands as any,
-          currentTurn: room?.current_turn || 1,
-          moves: [],
-          status: state.status as any,
-          winner: state.winner as any,
+    const sendHeartbeat = async () => {
+      try {
+        await fetch('/api/rooms/heartbeat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ roomId }),
         })
+      } catch (error) {
+        console.error('Heartbeat error:', error)
       }
-    } catch (error) {
-      console.error('Error loading room:', error)
-    } finally {
-      setLoading(false)
     }
-  }
+
+    // 初回ハートビート送信
+    sendHeartbeat()
+
+    // 定期的にハートビートを送信
+    heartbeatIntervalRef.current = setInterval(sendHeartbeat, intervalSeconds * 1000)
+
+    return () => {
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current)
+        heartbeatIntervalRef.current = null
+      }
+    }
+  }, [roomId]) // roomInfoを依存配列から削除
 
   const handleMove = async (from: Position, to: Position) => {
     if (!gameState || !roomInfo) return
@@ -92,6 +156,9 @@ export default function RoomPage() {
 
     // 自分のターンかチェック
     const myPlayerNumber = roomInfo.player1_id === myPlayerId ? 1 : 2
+    const myConfig = myPlayerNumber === 1 ? roomInfo.p1_config : roomInfo.p2_config
+    const hasHandPieces = myConfig?.useHandPieces ?? roomInfo.has_hand_pieces
+
     if (gameState.currentTurn !== myPlayerNumber) {
       alert('あなたのターンではありません')
       return
@@ -104,7 +171,7 @@ export default function RoomPage() {
     newBoard[from.row][from.col] = null
 
     const newHands = { ...gameState.hands }
-    if (capturedPiece && roomInfo.has_hand_pieces) {
+    if (capturedPiece && hasHandPieces) {
       const handKey = capturedPiece.type
       if (!newHands[myPlayerNumber][handKey]) {
         newHands[myPlayerNumber][handKey] = 0
@@ -114,11 +181,27 @@ export default function RoomPage() {
 
     // 詰みチェック
     const nextTurn = myPlayerNumber === 1 ? 2 : 1
-    const isGameOver = isCheckmate(newBoard, nextTurn)
 
-    // APIで手を送信
+    // キングを取った場合は即座にゲーム終了
+    const isKingCaptured = capturedPiece && (capturedPiece.type === 'king' || capturedPiece.type === 'chess_king')
+
+    // 詰み判定（キングを取っていない場合のみチェック）
+    const isGameOver = isKingCaptured || isCheckmate(newBoard, nextTurn)
+
+    // 楽観的UI更新：即座にローカル状態を更新
+    const optimisticState: GameState = {
+      board: newBoard,
+      hands: newHands,
+      currentTurn: nextTurn as 1 | 2,
+      moves: [...gameState.moves, { from, to, piece, captured: capturedPiece || undefined }],
+      status: isGameOver ? 'finished' : 'playing',
+      winner: isGameOver ? (myPlayerNumber as 1 | 2) : undefined,
+    }
+    setGameState(optimisticState)
+
+    // バックグラウンドでAPIリクエストを送信
     try {
-      await fetch('/api/game/move', {
+      const response = await fetch('/api/game/move', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -130,18 +213,28 @@ export default function RoomPage() {
         }),
       })
 
-      // ローカル状態を更新
-      setGameState({
-        board: newBoard,
-        hands: newHands,
-        currentTurn: nextTurn,
-        moves: [...gameState.moves, { from, to, piece, captured: capturedPiece || undefined }],
-        status: isGameOver ? 'finished' : 'playing',
-        winner: isGameOver ? myPlayerNumber : undefined,
-      })
+      if (!response.ok) {
+        // API失敗時は状態を元に戻す
+        setGameState(gameState)
+        throw new Error('Move API failed')
+      }
     } catch (error) {
       console.error('Error making move:', error)
-      alert('手の送信に失敗しました')
+      // ルームが削除された可能性をチェック
+      const { data: room } = await supabase
+        .from('rooms')
+        .select('id')
+        .eq('id', roomId)
+        .single() as any
+
+      if (!room) {
+        setRoomDeleted(true)
+        alert('ルームが削除されました。トップページに戻ります。')
+      } else {
+        // API失敗時は元の状態に戻す
+        setGameState(gameState)
+        alert('手の送信に失敗しました')
+      }
     }
   }
 
@@ -153,11 +246,15 @@ export default function RoomPage() {
     )
   }
 
-  if (!gameState || !roomInfo) {
+  if (roomDeleted || (!loading && (!gameState || !roomInfo))) {
     return (
       <div className="container text-center" style={{ paddingTop: '2rem' }}>
-        <p>ルームが見つかりません</p>
-        <button className="btn btn-secondary mt-md" onClick={() => router.push('/')}>
+        <h2 style={{ fontSize: 'var(--font-size-xl)', marginBottom: 'var(--spacing-lg)' }}>⚠️ ルームが削除されました</h2>
+        <p className="text-muted mb-lg">
+          このルームは非アクティブのため削除されました。<br />
+          新しいルームを作成するか、別のルームに参加してください。
+        </p>
+        <button className="btn btn-primary" onClick={() => router.push('/')}>
           トップに戻る
         </button>
       </div>
@@ -165,8 +262,12 @@ export default function RoomPage() {
   }
 
   const myPlayerNumber = roomInfo.player1_id === myPlayerId ? 1 : 2
-  const isMyTurn = gameState.currentTurn === myPlayerNumber
-  const hasHandPieces = roomInfo.has_hand_pieces
+  const isMyTurn = gameState?.currentTurn === myPlayerNumber
+
+  const p1Config = roomInfo.p1_config || { useHandPieces: roomInfo.has_hand_pieces }
+  const p2Config = roomInfo.p2_config || { useHandPieces: roomInfo.has_hand_pieces }
+
+  if (!gameState) return null
 
   return (
     <main className="container" style={{ paddingTop: '2rem', paddingBottom: '2rem' }}>
@@ -179,7 +280,7 @@ export default function RoomPage() {
       </p>
 
       <div style={{ display: 'flex', gap: 'var(--spacing-xl)', justifyContent: 'center', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        {hasHandPieces && (
+        {p2Config.useHandPieces && (
           <HandPieces
             hand={gameState.hands[2]}
             playerName={myPlayerNumber === 2 ? 'あなたの持ち駒' : '相手の持ち駒'}
@@ -190,9 +291,10 @@ export default function RoomPage() {
           board={gameState.board}
           currentPlayer={gameState.currentTurn}
           onMove={isMyTurn ? handleMove : undefined}
+          flipped={myPlayerNumber === 2}
         />
 
-        {hasHandPieces && (
+        {p1Config.useHandPieces && (
           <HandPieces
             hand={gameState.hands[1]}
             playerName={myPlayerNumber === 1 ? 'あなたの持ち駒' : '相手の持ち駒'}

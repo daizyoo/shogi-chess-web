@@ -21,6 +21,7 @@ export interface Database {
           current_turn: number
           created_at: string
           updated_at: string
+          last_activity_at: string
         }
         Insert: {
           id?: string
@@ -33,6 +34,7 @@ export interface Database {
           current_turn?: number
           created_at?: string
           updated_at?: string
+          last_activity_at?: string
         }
         Update: {
           id?: string
@@ -45,6 +47,7 @@ export interface Database {
           current_turn?: number
           created_at?: string
           updated_at?: string
+          last_activity_at?: string
         }
       }
       game_states: {
@@ -118,6 +121,58 @@ export interface Database {
           promoted?: boolean
           captured_piece?: string | null
           created_at?: string
+        }
+      }
+      profiles: {
+        Row: {
+          id: string
+          display_name: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          display_name: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          display_name?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      custom_boards: {
+        Row: {
+          id: string
+          user_id: string | null
+          name: string
+          board_data: Json
+          is_public: boolean
+          user_display_name: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          name: string
+          board_data: Json
+          is_public?: boolean
+          user_display_name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          name?: string
+          board_data?: Json
+          is_public?: boolean
+          user_display_name?: string | null
+          created_at?: string
+          updated_at?: string
         }
       }
     }
