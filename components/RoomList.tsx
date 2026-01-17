@@ -50,10 +50,12 @@ export default function RoomList() {
   useEffect(() => {
     let retryCount = 0
     const maxRetries = 3
+    let hasFetched = false // フェッチが完了したかどうかを追跡
 
     const fetchWithRetry = async () => {
       try {
         await fetchRooms()
+        hasFetched = true // 成功時にフラグを立てる
       } catch (error) {
         if (retryCount < maxRetries) {
           retryCount++
@@ -61,6 +63,7 @@ export default function RoomList() {
           setTimeout(fetchWithRetry, 1000 * retryCount) // 指数バックオフ
         } else {
           // 全てのリトライが失敗した場合
+          hasFetched = true // リトライ完了
           setErrorState(true)
         }
       }
@@ -69,11 +72,11 @@ export default function RoomList() {
     // 初回フェッチ
     fetchWithRetry()
 
-    // タイムアウト設定（10秒経ってもloadingがtrueなら強制的にエラー状態に）
+    // タイムアウト設定（10秒経ってもフェッチが完了しない場合エラー）
     const timeoutId = setTimeout(() => {
-      if (loading) {
+      if (!hasFetched) {
         setLoading(false)
-        setErrorState(true) // タイムアウト時もエラー状態に設定
+        setErrorState(true)
         console.warn('Fetch timeout - setting error state')
       }
     }, 10000)
