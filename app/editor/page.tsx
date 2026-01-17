@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import BoardEditor from '@/components/BoardEditor'
+import { useAuth } from '@/components/Auth/AuthProvider'
+import { supabase } from '@/lib/supabase/client'
 import type { CustomBoardData, PieceSymbol } from '@/lib/board/types'
 import {
   DEFAULT_CHESS_BOARD,
@@ -13,9 +15,13 @@ import {
 
 export default function BoardEditorPage() {
   const router = useRouter()
+  const { user, profile } = useAuth()
   const [boardName, setBoardName] = useState('Custom Board')
   const [boardSize, setBoardSize] = useState<8 | 9>(9)
   const [board, setBoard] = useState<string[]>(EMPTY_9x9_BOARD)
+  const [isPublic, setIsPublic] = useState(false)
+  const [saving, setSaving] = useState(false)
+
   const [player1Config, setPlayer1Config] = useState({
     isShogi: true,
     useHandPieces: true,
@@ -60,6 +66,38 @@ export default function BoardEditorPage() {
     a.download = `${boardName.replace(/\s+/g, '_')}.json`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  const handleSaveToDB = async () => {
+    if (!user) {
+      alert('保存するにはログインが必要です。')
+      return
+    }
+
+    setSaving(true)
+    try {
+      const { data, error } = await (supabase
+        .from('custom_boards') as any)
+        .insert({
+          user_id: user.id,
+          name: boardName,
+          board_data: {
+            board,
+            player1: player1Config,
+            player2: player2Config,
+          },
+          is_public: isPublic,
+          user_display_name: profile?.display_name || user.email,
+        })
+        .select()
+
+      if (error) throw error
+      alert('ボードを保存しました！')
+    } catch (error: any) {
+      alert(`保存に失敗しました: ${error.message}`)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -141,11 +179,35 @@ export default function BoardEditorPage() {
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)', flexWrap: 'wrap' }}>
-          <button className="btn btn-primary" onClick={handleExportJSON}>
+        <div style={{ display: 'flex', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)', flexWrap: 'wrap', alignItems: 'center' }}>
+          {user ? (
+            <>
+              <button
+                className="btn btn-primary"
+                onClick={handleSaveToDB}
+                disabled={saving}
+              >
+                {saving ? '保存中...' : 'クラウドに保存'}
+              </button>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={isPublic}
+                  onChange={(e) => setIsPublic(e.target.checked)}
+                />
+                <span className="text-sm">公開する</span>
+              </label>
+            </>
+          ) : (
+            <p className="text-sm text-muted">※ ログインするとボードをクラウドに保存・公開できます</p>
+          )}
+
+          <div style={{ borderLeft: '1px solid var(--border)', height: '20px', margin: '0 10px' }} />
+
+          <button className="btn btn-outline" onClick={handleExportJSON}>
             Export JSON
           </button>
-          <label className="btn btn-primary" style={{ cursor: 'pointer' }}>
+          <label className="btn btn-outline" style={{ cursor: 'pointer' }}>
             Import JSON
             <input
               type="file"

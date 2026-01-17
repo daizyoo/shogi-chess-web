@@ -156,6 +156,8 @@ export default function RoomPage() {
 
     // 自分のターンかチェック
     const myPlayerNumber = roomInfo.player1_id === myPlayerId ? 1 : 2
+    const myConfig = myPlayerNumber === 1 ? roomInfo.p1_config : roomInfo.p2_config
+    const hasHandPieces = myConfig?.useHandPieces ?? roomInfo.has_hand_pieces
 
     if (gameState.currentTurn !== myPlayerNumber) {
       alert('あなたのターンではありません')
@@ -169,7 +171,7 @@ export default function RoomPage() {
     newBoard[from.row][from.col] = null
 
     const newHands = { ...gameState.hands }
-    if (capturedPiece && roomInfo.has_hand_pieces) {
+    if (capturedPiece && hasHandPieces) {
       const handKey = capturedPiece.type
       if (!newHands[myPlayerNumber][handKey]) {
         newHands[myPlayerNumber][handKey] = 0
@@ -250,8 +252,12 @@ export default function RoomPage() {
   }
 
   const myPlayerNumber = roomInfo.player1_id === myPlayerId ? 1 : 2
-  const isMyTurn = gameState.currentTurn === myPlayerNumber
-  const hasHandPieces = roomInfo.has_hand_pieces
+  const isMyTurn = gameState?.currentTurn === myPlayerNumber
+
+  const p1Config = roomInfo.p1_config || { useHandPieces: roomInfo.has_hand_pieces }
+  const p2Config = roomInfo.p2_config || { useHandPieces: roomInfo.has_hand_pieces }
+
+  if (!gameState) return null
 
   return (
     <main className="container" style={{ paddingTop: '2rem', paddingBottom: '2rem' }}>
@@ -264,7 +270,7 @@ export default function RoomPage() {
       </p>
 
       <div style={{ display: 'flex', gap: 'var(--spacing-xl)', justifyContent: 'center', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        {hasHandPieces && (
+        {p2Config.useHandPieces && (
           <HandPieces
             hand={gameState.hands[2]}
             playerName={myPlayerNumber === 2 ? 'あなたの持ち駒' : '相手の持ち駒'}
@@ -277,7 +283,7 @@ export default function RoomPage() {
           onMove={isMyTurn ? handleMove : undefined}
         />
 
-        {hasHandPieces && (
+        {p1Config.useHandPieces && (
           <HandPieces
             hand={gameState.hands[1]}
             playerName={myPlayerNumber === 1 ? 'あなたの持ち駒' : '相手の持ち駒'}

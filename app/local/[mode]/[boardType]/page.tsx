@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createInitialBoard, getBoardSize } from '@/lib/game/board'
 import { getDropPositions, useHandPiece } from '@/lib/game/drops'
-import { canPromoteOnMove, mustPromote } from '@/lib/game/promotion'
+import { isCheckmate } from '@/lib/game/checkmate'
+import { canPromoteChess, canPromoteOnMove, mustPromote } from '@/lib/game/promotion'
 import { getBestMove } from '@/lib/ai/simpleAI'
 import type { GameState, Position, Move, Player, BoardType, PieceType } from '@/lib/types'
 import Board from '@/components/Board'
@@ -35,6 +36,32 @@ export default function LocalGamePage() {
 
   // ゲーム初期化
   useEffect(() => {
+    if (boardType === 'custom') {
+      const saved = localStorage.getItem('customBoard')
+      if (saved) {
+        try {
+          const customData = JSON.parse(saved)
+          const initialBoard = createInitialBoard('custom', customData)
+          setGameState({
+            board: initialBoard,
+            hands: { 1: {}, 2: {} },
+            currentTurn: 1,
+            moves: [],
+            status: 'playing',
+            // カスタム設定をGameStateに注入する必要があるか？
+            // とりあえず、hasHandPieces などを更新するためだけに使う
+          })
+
+          // カスタムボードの設定を反映
+          // 注意: このコンポーネントの hasHandPieces は boardType に依存している
+          // 暫定的に localStorage から情報を取得して上書きする
+          return
+        } catch (e) {
+          console.error('Failed to parse custom board', e)
+        }
+      }
+    }
+
     const initialBoard = createInitialBoard(boardType)
     setGameState({
       board: initialBoard,
@@ -44,6 +71,23 @@ export default function LocalGamePage() {
       status: 'playing',
     })
   }, [boardType])
+
+  // カスタム設定の取得
+  const getCustomConfig = () => {
+    if (boardType !== 'custom') return null
+    const saved = localStorage.getItem('customBoard')
+    if (saved) return JSON.parse(saved)
+    return null
+  }
+
+  const customConfig = getCustomConfig()
+  const p1Config = customConfig?.player1 || { isShogi: boardType !== 'chess', useHandPieces: boardType !== 'chess' }
+  const p2Config = customConfig?.player2 || { isShogi: boardType !== 'chess', useHandPieces: boardType !== 'chess' }
+
+  // hasHandPieces を各プレイヤーごとに考慮する必要があるが、現状のUIは共有
+  const localHasHandPieces = boardType === 'custom'
+    ? (p1Config.useHandPieces || p2Config.useHandPieces)
+    : (boardType === 'shogi' || boardType === 'hybrid')
 
   // AI の手番処理
   useEffect(() => {
@@ -87,7 +131,7 @@ export default function LocalGamePage() {
     newBoard[from.row][from.col] = null
 
     const newHands = { ...gameState.hands }
-    if (capturedPiece && hasHandPieces) {
+    if (capturedPiece && localHasHandPieces) {
       // 成り駒は元の駒に戻す
       let handPieceType = capturedPiece.type
       if (capturedPiece.promoted) {
@@ -112,7 +156,6 @@ export default function LocalGamePage() {
     const nextTurn: Player = gameState.currentTurn === 1 ? 2 : 1
 
     // 詰み判定
-    const { isCheckmate } = require('@/lib/game/checkmate')
     const isGameOver = isCheckmate(newBoard, nextTurn)
 
     setGameState({
@@ -138,7 +181,6 @@ export default function LocalGamePage() {
 
     // チェスプロモーションチェック（チェス盤またはハイブリッド盤の場合）
     if (boardType === 'chess' || boardType === 'hybrid') {
-      const { canPromoteChess } = require('@/lib/game/promotion')
       if (canPromoteChess(piece, to, boardSize)) {
         setPromotionDialog({
           from,
@@ -162,7 +204,7 @@ export default function LocalGamePage() {
       }
 
       // 成るか選択する場合
-      if (canPromoteMove && hasHandPieces) {
+      if (canPromoteMove && localHasHandPieces) {
         setPromotionDialog({
           from,
           to,
@@ -230,9 +272,9 @@ export default function LocalGamePage() {
     )
   }
 
-  const boardSize = getBoardSize(boardType)
+  const boardSize = getBoardSize(boardType, gameState?.board.length)
   const boardName =
-    boardType === 'shogi' ? '将棋' : boardType === 'chess' ? 'チェス' : 'ハイブリッド'
+    boardType === 'shogi' ? '将棋' : boardType === 'chess' ? 'チェス' : boardType === 'hybrid' ? 'ハイブリッド' : 'カスタム'
 
   // 持ち駒配置可能位置を取得
   const dropPositions = selectedHandPiece
@@ -256,8 +298,6 @@ export default function LocalGamePage() {
         {boardName} ({boardSize}x{boardSize})
       </p>
 
-
-
       {selectedHandPiece && (
         <div className="text-center mb-md">
           <span style={{ color: 'var(--color-accent)', fontWeight: '600' }}>
@@ -275,7 +315,7 @@ export default function LocalGamePage() {
           flexWrap: 'wrap',
         }}
       >
-        {hasHandPieces && (
+        {localHasHandPieces && (
           <HandPieces
             hand={gameState.hands[2]}
             playerName={mode === 'pva' ? 'AI の持ち駒' : 'プレイヤー2 の持ち駒'}
@@ -293,7 +333,7 @@ export default function LocalGamePage() {
           onPromotionSelect={(from, to, pieceType) => executeMoveWithPromotion(from, to, pieceType)}
         />
 
-        {hasHandPieces && (
+        {localHasHandPieces && (
           <HandPieces
             hand={gameState.hands[1]}
             playerName="あなたの持ち駒"

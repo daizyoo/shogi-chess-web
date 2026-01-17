@@ -17,10 +17,25 @@ export default async function handler(
   }
 
   try {
-    const { name, boardType, hasHandPieces, playerId } = req.body
+    const { name, boardType, hasHandPieces, playerId, customData } = req.body
 
     if (!name || !boardType) {
       return res.status(400).json({ error: 'Missing required fields' })
+    }
+
+    // プレイヤーの設定を決定
+    let p1Config = { isShogi: true, useHandPieces: true }
+    let p2Config = { isShogi: true, useHandPieces: true }
+
+    if (boardType === 'chess') {
+      p1Config = { isShogi: false, useHandPieces: false }
+      p2Config = { isShogi: false, useHandPieces: false }
+    } else if (boardType === 'hybrid') {
+      p1Config = { isShogi: true, useHandPieces: true }
+      p2Config = { isShogi: false, useHandPieces: false }
+    } else if (boardType === 'custom' && customData) {
+      p1Config = customData.player1
+      p2Config = customData.player2
     }
 
     // ルームを作成
@@ -29,11 +44,13 @@ export default async function handler(
       .insert({
         name,
         board_type: boardType,
-        has_hand_pieces: hasHandPieces ?? false,
-        player1_id: playerId || null, // 作成者をplayer1に設定
+        has_hand_pieces: hasHandPieces ?? (p1Config.useHandPieces || p2Config.useHandPieces),
+        player1_id: playerId || null,
         status: 'waiting',
         current_turn: 1,
         last_activity_at: new Date().toISOString(),
+        p1_config: p1Config,
+        p2_config: p2Config,
       })
       .select()
       .single()
@@ -43,7 +60,7 @@ export default async function handler(
     }
 
     // 初期ゲーム状態を作成
-    const initialBoard = createInitialBoard(boardType as any)
+    const initialBoard = createInitialBoard(boardType as any, customData)
     const { error: stateError } = await (supabase
       .from('game_states') as any)
       .insert({
