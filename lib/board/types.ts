@@ -4,11 +4,19 @@ export interface CustomBoardData {
   board: string[] // Array of strings like "cr cn cb cq ck cb cn cr"
   player1: PlayerConfig
   player2: PlayerConfig
+  promotionZones?: {  // Optional for backward compatibility
+    player1: PromotionZoneConfig
+    player2: PromotionZoneConfig
+  }
 }
 
 export interface PlayerConfig {
-  isShogi: boolean
   useHandPieces: boolean
+}
+
+export interface PromotionZoneConfig {
+  rows: number        // Number of rows in promotion zone (e.g., 3)
+  fromTop: boolean    // true: from top of board, false: from bottom
 }
 
 export type PieceSymbol =

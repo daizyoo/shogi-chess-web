@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import BoardEditor from '@/components/BoardEditor'
 import { useAuth } from '@/components/Auth/AuthProvider'
 import { supabase } from '@/lib/supabase/client'
-import type { CustomBoardData, PieceSymbol } from '@/lib/board/types'
+import type { CustomBoardData, PieceSymbol, PromotionZoneConfig } from '@/lib/board/types'
 import {
   DEFAULT_CHESS_BOARD,
   DEFAULT_SHOGI_BOARD,
@@ -23,12 +23,19 @@ export default function BoardEditorPage() {
   const [saving, setSaving] = useState(false)
 
   const [player1Config, setPlayer1Config] = useState({
-    isShogi: true,
     useHandPieces: true,
   })
   const [player2Config, setPlayer2Config] = useState({
-    isShogi: true,
     useHandPieces: true,
+  })
+
+  const [player1PromotionZone, setPlayer1PromotionZone] = useState<PromotionZoneConfig>({
+    rows: 3,
+    fromTop: true,
+  })
+  const [player2PromotionZone, setPlayer2PromotionZone] = useState<PromotionZoneConfig>({
+    rows: 3,
+    fromTop: false,
   })
 
   const loadTemplate = (template: 'chess' | 'shogi' | 'empty') => {
@@ -36,14 +43,18 @@ export default function BoardEditorPage() {
       case 'chess':
         setBoardSize(8)
         setBoard(DEFAULT_CHESS_BOARD)
-        setPlayer1Config({ isShogi: false, useHandPieces: false })
-        setPlayer2Config({ isShogi: false, useHandPieces: false })
+        setPlayer1Config({ useHandPieces: false })
+        setPlayer2Config({ useHandPieces: false })
+        setPlayer1PromotionZone({ rows: 1, fromTop: true })
+        setPlayer2PromotionZone({ rows: 1, fromTop: false })
         break
       case 'shogi':
         setBoardSize(9)
         setBoard(DEFAULT_SHOGI_BOARD)
-        setPlayer1Config({ isShogi: true, useHandPieces: true })
-        setPlayer2Config({ isShogi: true, useHandPieces: true })
+        setPlayer1Config({ useHandPieces: true })
+        setPlayer2Config({ useHandPieces: true })
+        setPlayer1PromotionZone({ rows: 3, fromTop: true })
+        setPlayer2PromotionZone({ rows: 3, fromTop: false })
         break
       case 'empty':
         setBoard(boardSize === 8 ? EMPTY_8x8_BOARD : EMPTY_9x9_BOARD)
@@ -57,6 +68,10 @@ export default function BoardEditorPage() {
       board,
       player1: player1Config,
       player2: player2Config,
+      promotionZones: {
+        player1: player1PromotionZone,
+        player2: player2PromotionZone,
+      },
     }
     const json = JSON.stringify(data, null, 2)
     const blob = new Blob([json], { type: 'application/json' })
@@ -85,6 +100,10 @@ export default function BoardEditorPage() {
             board,
             player1: player1Config,
             player2: player2Config,
+            promotionZones: {
+              player1: player1PromotionZone,
+              player2: player2PromotionZone,
+            },
           },
           is_public: isPublic,
           user_display_name: profile?.display_name || user.email,
@@ -113,6 +132,16 @@ export default function BoardEditorPage() {
         setPlayer1Config(data.player1)
         setPlayer2Config(data.player2)
         setBoardSize(data.board[0].split(/\s+/).length as 8 | 9)
+
+        // Load promotion zones with defaults for backward compatibility
+        if (data.promotionZones) {
+          setPlayer1PromotionZone(data.promotionZones.player1)
+          setPlayer2PromotionZone(data.promotionZones.player2)
+        } else {
+          // Use defaults if not specified
+          setPlayer1PromotionZone({ rows: 3, fromTop: true })
+          setPlayer2PromotionZone({ rows: 3, fromTop: false })
+        }
       } catch (error) {
         alert('Failed to import JSON file')
       }
@@ -228,15 +257,6 @@ export default function BoardEditorPage() {
       }}>
         <div className="card">
           <h3 style={{ marginBottom: 'var(--spacing-sm)' }}>Player 1 (Upper case)</h3>
-          <label style={{ display: 'flex', alignItems: 'center', marginBottom: 'var(--spacing-xs)' }}>
-            <input
-              type="checkbox"
-              checked={player1Config.isShogi}
-              onChange={(e) => setPlayer1Config({ ...player1Config, isShogi: e.target.checked })}
-              style={{ marginRight: 'var(--spacing-xs)' }}
-            />
-            Shogi pieces
-          </label>
           <label style={{ display: 'flex', alignItems: 'center' }}>
             <input
               type="checkbox"
@@ -250,15 +270,6 @@ export default function BoardEditorPage() {
 
         <div className="card">
           <h3 style={{ marginBottom: 'var(--spacing-sm)' }}>Player 2 (Lower case)</h3>
-          <label style={{ display: 'flex', alignItems: 'center', marginBottom: 'var(--spacing-xs)' }}>
-            <input
-              type="checkbox"
-              checked={player2Config.isShogi}
-              onChange={(e) => setPlayer2Config({ ...player2Config, isShogi: e.target.checked })}
-              style={{ marginRight: 'var(--spacing-xs)' }}
-            />
-            Shogi pieces
-          </label>
           <label style={{ display: 'flex', alignItems: 'center' }}>
             <input
               type="checkbox"
@@ -271,14 +282,106 @@ export default function BoardEditorPage() {
         </div>
       </div>
 
+      {/* Promotion Zone Config */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+        gap: 'var(--spacing-md)',
+        marginBottom: 'var(--spacing-lg)'
+      }}>
+        <div className="card">
+          <h3 style={{ marginBottom: 'var(--spacing-sm)' }}>Player 1 Promotion Zone</h3>
+          <div style={{ marginBottom: 'var(--spacing-sm)' }}>
+            <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: '14px' }}>
+              行数 (Rows):
+            </label>
+            <input
+              type="number"
+              min="1"
+              max={boardSize}
+              value={player1PromotionZone.rows}
+              onChange={(e) => setPlayer1PromotionZone({ ...player1PromotionZone, rows: parseInt(e.target.value) || 1 })}
+              className="input"
+              style={{ width: '100%' }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: '14px' }}>
+              方向 (Direction):
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', marginBottom: 'var(--spacing-xs)' }}>
+              <input
+                type="radio"
+                name="p1Direction"
+                checked={player1PromotionZone.fromTop}
+                onChange={() => setPlayer1PromotionZone({ ...player1PromotionZone, fromTop: true })}
+                style={{ marginRight: 'var(--spacing-xs)' }}
+              />
+              上から (From Top)
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center' }}>
+              <input
+                type="radio"
+                name="p1Direction"
+                checked={!player1PromotionZone.fromTop}
+                onChange={() => setPlayer1PromotionZone({ ...player1PromotionZone, fromTop: false })}
+                style={{ marginRight: 'var(--spacing-xs)' }}
+              />
+              下から (From Bottom)
+            </label>
+          </div>
+        </div>
+
+        <div className="card">
+          <h3 style={{ marginBottom: 'var(--spacing-sm)' }}>Player 2 Promotion Zone</h3>
+          <div style={{ marginBottom: 'var(--spacing-sm)' }}>
+            <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: '14px' }}>
+              行数 (Rows):
+            </label>
+            <input
+              type="number"
+              min="1"
+              max={boardSize}
+              value={player2PromotionZone.rows}
+              onChange={(e) => setPlayer2PromotionZone({ ...player2PromotionZone, rows: parseInt(e.target.value) || 1 })}
+              className="input"
+              style={{ width: '100%' }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: '14px' }}>
+              方向 (Direction):
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', marginBottom: 'var(--spacing-xs)' }}>
+              <input
+                type="radio"
+                name="p2Direction"
+                checked={player2PromotionZone.fromTop}
+                onChange={() => setPlayer2PromotionZone({ ...player2PromotionZone, fromTop: true })}
+                style={{ marginRight: 'var(--spacing-xs)' }}
+              />
+              上から (From Top)
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center' }}>
+              <input
+                type="radio"
+                name="p2Direction"
+                checked={!player2PromotionZone.fromTop}
+                onChange={() => setPlayer2PromotionZone({ ...player2PromotionZone, fromTop: false })}
+                style={{ marginRight: 'var(--spacing-xs)' }}
+              />
+              下から (From Bottom)
+            </label>
+          </div>
+        </div>
+      </div>
+
       {/* Interactive Board Editor */}
       <div className="card">
         <h3 style={{ marginBottom: 'var(--spacing-sm)' }}>Board Editor</h3>
         <BoardEditor
           board={board}
           onChange={setBoard}
-          player1IsShogi={player1Config.isShogi}
-          player2IsShogi={player2Config.isShogi}
         />
       </div>
 

@@ -7,11 +7,9 @@ import { PIECE_NAMES, SHOGI_PIECES, CHESS_PIECES } from '@/lib/board/types'
 interface BoardEditorProps {
   board: string[]
   onChange: (newBoard: string[]) => void
-  player1IsShogi: boolean
-  player2IsShogi: boolean
 }
 
-export default function BoardEditor({ board, onChange, player1IsShogi, player2IsShogi }: BoardEditorProps) {
+export default function BoardEditor({ board, onChange }: BoardEditorProps) {
   const [selectedPiece, setSelectedPiece] = useState<PieceSymbol | null>(null)
   const [isEraser, setIsEraser] = useState(false)
 
@@ -57,20 +55,45 @@ export default function BoardEditor({ board, onChange, player1IsShogi, player2Is
           <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: 'var(--spacing-xs)' }}>
             Player 1 (先手 / Upper case)
           </div>
-          <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
-            {(player1IsShogi ? SHOGI_PIECES : CHESS_PIECES).map((piece) => (
-              <button
-                key={piece}
-                onClick={() => {
-                  setSelectedPiece(piece)
-                  setIsEraser(false)
-                }}
-                className={`btn btn-sm ${selectedPiece === piece ? 'btn-primary' : 'btn-secondary'}`}
-                style={{ minWidth: '50px' }}
-              >
-                {getPieceDisplay(piece)} {piece}
-              </button>
-            ))}
+
+          {/* Shogi Pieces */}
+          <div style={{ marginBottom: 'var(--spacing-xs)' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>将棋駒</div>
+            <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
+              {SHOGI_PIECES.map((piece) => (
+                <button
+                  key={piece}
+                  onClick={() => {
+                    setSelectedPiece(piece)
+                    setIsEraser(false)
+                  }}
+                  className={`btn btn-sm ${selectedPiece === piece ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ minWidth: '50px' }}
+                >
+                  {getPieceDisplay(piece)} {piece}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Chess Pieces */}
+          <div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>チェス駒</div>
+            <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
+              {CHESS_PIECES.map((piece) => (
+                <button
+                  key={piece}
+                  onClick={() => {
+                    setSelectedPiece(piece)
+                    setIsEraser(false)
+                  }}
+                  className={`btn btn-sm ${selectedPiece === piece ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ minWidth: '50px' }}
+                >
+                  {getPieceDisplay(piece)} {piece}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -79,23 +102,51 @@ export default function BoardEditor({ board, onChange, player1IsShogi, player2Is
           <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: 'var(--spacing-xs)' }}>
             Player 2 (後手 / Lower case)
           </div>
-          <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
-            {(player2IsShogi ? SHOGI_PIECES : CHESS_PIECES).map((piece) => {
-              const lowerPiece = piece.toLowerCase() as PieceSymbol
-              return (
-                <button
-                  key={lowerPiece}
-                  onClick={() => {
-                    setSelectedPiece(lowerPiece)
-                    setIsEraser(false)
-                  }}
-                  className={`btn btn-sm ${selectedPiece === lowerPiece ? 'btn-primary' : 'btn-secondary'}`}
-                  style={{ minWidth: '50px' }}
-                >
-                  {getPieceDisplay(lowerPiece)} {lowerPiece}
-                </button>
-              )
-            })}
+
+          {/* Shogi Pieces */}
+          <div style={{ marginBottom: 'var(--spacing-xs)' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>将棋駒</div>
+            <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
+              {SHOGI_PIECES.map((piece) => {
+                const lowerPiece = piece.toLowerCase() as PieceSymbol
+                return (
+                  <button
+                    key={lowerPiece}
+                    onClick={() => {
+                      setSelectedPiece(lowerPiece)
+                      setIsEraser(false)
+                    }}
+                    className={`btn btn-sm ${selectedPiece === lowerPiece ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ minWidth: '50px' }}
+                  >
+                    {getPieceDisplay(lowerPiece)} {lowerPiece}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Chess Pieces */}
+          <div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>チェス駒</div>
+            <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
+              {CHESS_PIECES.map((piece) => {
+                const lowerPiece = piece.toLowerCase() as PieceSymbol
+                return (
+                  <button
+                    key={lowerPiece}
+                    onClick={() => {
+                      setSelectedPiece(lowerPiece)
+                      setIsEraser(false)
+                    }}
+                    className={`btn btn-sm ${selectedPiece === lowerPiece ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ minWidth: '50px' }}
+                  >
+                    {getPieceDisplay(lowerPiece)} {lowerPiece}
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </div>
 
