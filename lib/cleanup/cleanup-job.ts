@@ -32,7 +32,7 @@ export async function cleanupInactiveRooms(timeoutMinutes: number = 30): Promise
       return 0
     }
 
-    const roomIds = timedOutRooms.map(room => room.id)
+    const roomIds = (timedOutRooms as Array<{ id: string }>).map(room => room.id)
 
     // 関連データを削除
     // 1. 手の履歴を削除
@@ -74,16 +74,11 @@ export async function cleanupInactiveRooms(timeoutMinutes: number = 30): Promise
   }
 }
 
-/**
- * ルームの最終アクティビティ時刻を更新する
- * @param roomId ルームID
- */
 export async function updateRoomActivity(roomId: string): Promise<void> {
   try {
-    await (supabase
-      .from('rooms')
+    await (supabase.from('rooms') as any)
       .update({ last_activity_at: new Date().toISOString() })
-      .eq('id', roomId) as any)
+      .eq('id', roomId)
   } catch (error) {
     console.error('Error updating room activity:', error)
   }
