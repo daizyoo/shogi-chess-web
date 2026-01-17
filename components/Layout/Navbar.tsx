@@ -42,6 +42,10 @@ export default function Navbar() {
             ボードエディタ
           </Link>
 
+          <Link href="/feedback" className="text-sm font-medium hover:text-primary transition-colors">
+            フィードバック
+          </Link>
+
           {!loading && (
             <>
               {user ? (
