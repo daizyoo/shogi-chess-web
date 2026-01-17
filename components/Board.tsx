@@ -15,6 +15,7 @@ interface BoardProps {
   onDrop?: (row: number, col: number) => void
   dropPositions?: Position[]
   onPromotionSelect?: (from: Position, to: Position, pieceType: PieceTypeName) => void
+  flipped?: boolean  // trueの場合、ボードを180度回転（Player 2用）
 }
 
 export default function Board({
@@ -23,7 +24,8 @@ export default function Board({
   onMove,
   onDrop,
   dropPositions = [],
-  onPromotionSelect
+  onPromotionSelect,
+  flipped = false
 }: BoardProps) {
   const [selectedSquare, setSelectedSquare] = useState<Position | null>(null)
   const [highlightedSquares, setHighlightedSquares] = useState<Position[]>([])
@@ -121,31 +123,50 @@ export default function Board({
     }
   }
 
+  // ボードを反転させる場合の処理
+  const displayBoard = flipped
+    ? board.map(row => [...row].reverse()).reverse()
+    : board
+
+  // 座標変換関数
+  const transformCoords = (row: number, col: number) => {
+    if (flipped) {
+      return {
+        row: boardSize - 1 - row,
+        col: boardSize - 1 - col
+      }
+    }
+    return { row, col }
+  }
+
   return (
     <>
       <div className={`${styles.board} ${boardSizeClass}`}>
-        {board.map((rowPieces, rowIndex) =>
-          rowPieces.map((piece, colIndex) => {
-            const selected = isSquareSelected(rowIndex, colIndex)
-            const highlighted = isSquareHighlighted(rowIndex, colIndex)
-            const droppable = isSquareDroppable(rowIndex, colIndex)
+        {displayBoard.map((rowPieces, displayRow) =>
+          rowPieces.map((piece, displayCol) => {
+            // 実際の座標に変換
+            const { row: actualRow, col: actualCol } = transformCoords(displayRow, displayCol)
+
+            const selected = isSquareSelected(actualRow, actualCol)
+            const highlighted = isSquareHighlighted(actualRow, actualCol)
+            const droppable = isSquareDroppable(actualRow, actualCol)
 
             // 敵駒がある場所かチェック
             const hasEnemyPiece = highlighted && piece && piece.player !== currentPlayer
 
             // 市松模様の色を決定
-            const isDark = (rowIndex + colIndex) % 2 === 1
+            const isDark = (displayRow + displayCol) % 2 === 1
             const squareColorClass = isDark ? styles.squareDark : styles.squareLight
 
             return (
               <div
-                key={`${rowIndex}-${colIndex}`}
+                key={`${displayRow}-${displayCol}`}
                 className={`${styles.square} ${squareColorClass} ${selected ? styles.squareSelected : ''
                   } ${hasEnemyPiece ? styles.squareCapture : highlighted ? styles.squareHighlight : ''} ${droppable ? styles.squareDroppable : ''
                   }`}
-                onClick={() => handleSquareClick(rowIndex, colIndex)}
+                onClick={() => handleSquareClick(actualRow, actualCol)}
               >
-                {piece && <Piece piece={piece} />}
+                {piece && <Piece piece={piece} flipped={flipped} />}
               </div>
             )
           })

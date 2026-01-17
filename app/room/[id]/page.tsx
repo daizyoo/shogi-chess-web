@@ -188,7 +188,18 @@ export default function RoomPage() {
     // 詰み判定（キングを取っていない場合のみチェック）
     const isGameOver = isKingCaptured || isCheckmate(newBoard, nextTurn)
 
-    // APIで手を送信
+    // 楽観的UI更新：即座にローカル状態を更新
+    const optimisticState: GameState = {
+      board: newBoard,
+      hands: newHands,
+      currentTurn: nextTurn as 1 | 2,
+      moves: [...gameState.moves, { from, to, piece, captured: capturedPiece || undefined }],
+      status: isGameOver ? 'finished' : 'playing',
+      winner: isGameOver ? (myPlayerNumber as 1 | 2) : undefined,
+    }
+    setGameState(optimisticState)
+
+    // バックグラウンドでAPIリクエストを送信
     try {
       const response = await fetch('/api/game/move', {
         method: 'POST',
@@ -203,18 +214,10 @@ export default function RoomPage() {
       })
 
       if (!response.ok) {
+        // API失敗時は状態を元に戻す
+        setGameState(gameState)
         throw new Error('Move API failed')
       }
-
-      // ローカル状態を更新
-      setGameState({
-        board: newBoard,
-        hands: newHands,
-        currentTurn: nextTurn,
-        moves: [...gameState.moves, { from, to, piece, captured: capturedPiece || undefined }],
-        status: isGameOver ? 'finished' : 'playing',
-        winner: isGameOver ? myPlayerNumber : undefined,
-      })
     } catch (error) {
       console.error('Error making move:', error)
       // ルームが削除された可能性をチェック
@@ -228,6 +231,8 @@ export default function RoomPage() {
         setRoomDeleted(true)
         alert('ルームが削除されました。トップページに戻ります。')
       } else {
+        // API失敗時は元の状態に戻す
+        setGameState(gameState)
         alert('手の送信に失敗しました')
       }
     }
@@ -286,6 +291,7 @@ export default function RoomPage() {
           board={gameState.board}
           currentPlayer={gameState.currentTurn}
           onMove={isMyTurn ? handleMove : undefined}
+          flipped={myPlayerNumber === 2}
         />
 
         {p1Config.useHandPieces && (
