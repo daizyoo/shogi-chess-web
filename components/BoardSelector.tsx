@@ -42,26 +42,153 @@ export default function BoardSelector({ onSelect, showTitle = true }: BoardSelec
     }
   }
 
-  if (loading) return <div className="text-sm text-muted">読み込み中...</div>
+  const getBoardSize = (board: string[]) => {
+    return `${board.length}x${board[0]?.split(' ').filter(s => s).length || board.length}`
+  }
+
+  const getPlayerInfo = (config: any) => {
+    const pieceType = config.isShogi !== false ? '将棋駒' : 'チェス駒'
+    const handPieces = config.useHandPieces ? '🎴 持ち駒あり' : '❌ 持ち駒なし'
+    return { pieceType, handPieces }
+  }
+
+  if (loading) {
+    return (
+      <div className="text-center py-4">
+        <div className="pulse" style={{ color: 'var(--color-muted)' }}>読み込み中...</div>
+      </div>
+    )
+  }
 
   if (boards.length === 0) {
-    return <div className="text-sm text-muted">公開されているボードはありません</div>
+    return (
+      <div className="card text-center py-6" style={{ backgroundColor: 'var(--color-surface-alt)' }}>
+        <p style={{ color: 'var(--color-muted)' }}>公開されているボードはありません</p>
+      </div>
+    )
   }
 
   return (
     <div>
-      {showTitle && <h3 className="text-lg font-semibold mb-3">公開されたカスタムボード</h3>}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2">
-        {boards.map((board) => (
-          <button
-            key={board.id}
-            onClick={() => onSelect(board.board_data as CustomBoardData)}
-            className="flex flex-col items-start p-3 border border-border rounded-lg hover:bg-surface-alt hover:border-primary transition-all text-left"
-          >
-            <span className="font-bold text-sm mb-1">{board.name}</span>
-            <span className="text-xs text-muted">作者: {board.user_display_name}</span>
-          </button>
-        ))}
+      {showTitle && (
+        <h3
+          style={{
+            fontSize: 'var(--font-size-xl)',
+            fontWeight: '600',
+            marginBottom: 'var(--spacing-lg)',
+            color: 'var(--color-text)',
+          }}
+        >
+          公開されたカスタムボード
+        </h3>
+      )}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+          gap: 'var(--spacing-md)',
+          maxHeight: '500px',
+          overflowY: 'auto',
+          paddingRight: 'var(--spacing-sm)',
+        }}
+      >
+        {boards.map((board) => {
+          const boardData = board.board_data as CustomBoardData
+          const size = getBoardSize(boardData.board)
+          const p1 = getPlayerInfo(boardData.player1)
+          const p2 = getPlayerInfo(boardData.player2)
+
+          return (
+            <button
+              key={board.id}
+              onClick={() => onSelect(boardData)}
+              className="card"
+              style={{
+                padding: 'var(--spacing-md)',
+                textAlign: 'left',
+                cursor: 'pointer',
+                transition: 'all var(--transition-normal)',
+                border: '2px solid var(--color-border)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)'
+                e.currentTarget.style.borderColor = 'var(--color-primary)'
+                e.currentTarget.style.boxShadow = 'var(--shadow-lg)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.borderColor = 'var(--color-border)'
+                e.currentTarget.style.boxShadow = 'var(--shadow-md)'
+              }}
+            >
+              {/* ボード名 */}
+              <h4
+                style={{
+                  fontSize: 'var(--font-size-md)',
+                  fontWeight: '600',
+                  marginBottom: 'var(--spacing-xs)',
+                  color: 'var(--color-primary)',
+                }}
+              >
+                {board.name}
+              </h4>
+
+              {/* 作者 */}
+              <p
+                style={{
+                  fontSize: 'var(--font-size-sm)',
+                  color: 'var(--color-muted)',
+                  marginBottom: 'var(--spacing-md)',
+                }}
+              >
+                作者: {board.user_display_name}
+              </p>
+
+              {/* 説明 */}
+              {boardData.description && (
+                <p
+                  style={{
+                    fontSize: 'var(--font-size-sm)',
+                    color: 'var(--color-text)',
+                    marginBottom: 'var(--spacing-md)',
+                    fontStyle: 'italic',
+                  }}
+                >
+                  {boardData.description}
+                </p>
+              )}
+
+              {/* ルール情報 */}
+              <div
+                style={{
+                  borderTop: '1px solid var(--color-border)',
+                  paddingTop: 'var(--spacing-sm)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 'var(--spacing-xs)',
+                }}
+              >
+                {/* 盤面サイズ */}
+                <div style={{ fontSize: 'var(--font-size-sm)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}>
+                  <span>📐</span>
+                  <span style={{ fontWeight: '500' }}>{size}盤</span>
+                </div>
+
+                {/* プレイヤー1 */}
+                <div style={{ fontSize: 'var(--font-size-sm)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}>
+                  <span>👤</span>
+                  <span>P1: {p1.pieceType} {p1.handPieces}</span>
+                </div>
+
+                {/* プレイヤー2 */}
+                <div style={{ fontSize: 'var(--font-size-sm)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}>
+                  <span>👤</span>
+                  <span>P2: {p2.pieceType} {p2.handPieces}</span>
+                </div>
+              </div>
+            </button>
+          )
+        })}
       </div>
     </div>
   )

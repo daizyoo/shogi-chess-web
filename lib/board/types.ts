@@ -1,6 +1,7 @@
 // Custom Board Types - Compatible with Rust format
 export interface CustomBoardData {
   name: string
+  description?: string // Optional description of the board
   board: string[] // Array of strings like "cr cn cb cq ck cb cn cr"
   player1: PlayerConfig
   player2: PlayerConfig

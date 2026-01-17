@@ -32,7 +32,7 @@ export default function LocalGamePage() {
     promotionPieceType?: PieceType // チェスの場合の選択した駒
   } | null>(null)
 
-  const hasHandPieces = boardType === 'shogi' || boardType === 'hybrid'
+  const hasHandPieces = boardType === 'shogi'
 
   // ゲーム初期化
   useEffect(() => {
@@ -87,7 +87,7 @@ export default function LocalGamePage() {
   // hasHandPieces を各プレイヤーごとに考慮する必要があるが、現状のUIは共有
   const localHasHandPieces = boardType === 'custom'
     ? (p1Config.useHandPieces || p2Config.useHandPieces)
-    : (boardType === 'shogi' || boardType === 'hybrid')
+    : boardType === 'shogi'
 
   // AI の手番処理
   useEffect(() => {
@@ -183,7 +183,7 @@ export default function LocalGamePage() {
     const boardSize = gameState.board.length
 
     // チェスプロモーションチェック（チェス盤またはハイブリッド盤の場合）
-    if (boardType === 'chess' || boardType === 'hybrid') {
+    if (boardType === 'chess') {
       if (canPromoteChess(piece, to, boardSize)) {
         setPromotionDialog({
           from,
@@ -196,7 +196,7 @@ export default function LocalGamePage() {
     }
 
     // 将棋の成りチェック（将棋盤またはハイブリッド盤の場合）
-    if (boardType === 'shogi' || boardType === 'hybrid') {
+    if (boardType === 'shogi') {
       const canPromoteMove = !piece.promoted && canPromoteOnMove(from, to, piece.player, piece.type, boardSize)
       const mustPromoteMove = !piece.promoted && mustPromote(to, piece.player, piece.type, boardSize)
 
@@ -277,7 +277,7 @@ export default function LocalGamePage() {
 
   const boardSize = getBoardSize(boardType, gameState?.board.length)
   const boardName =
-    boardType === 'shogi' ? '将棋' : boardType === 'chess' ? 'チェス' : boardType === 'hybrid' ? 'ハイブリッド' : 'カスタム'
+    boardType === 'shogi' ? '将棋' : boardType === 'chess' ? 'チェス' : 'カスタム'
 
   // 持ち駒配置可能位置を取得
   const dropPositions = selectedHandPiece

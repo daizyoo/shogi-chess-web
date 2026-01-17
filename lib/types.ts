@@ -52,7 +52,7 @@ export interface GameState {
 }
 
 // 盤の種類
-export type BoardType = 'shogi' | 'chess' | 'hybrid' | 'custom';
+export type BoardType = 'shogi' | 'chess' | 'custom';
 
 // カスタム盤の設定
 export interface CustomBoardConfig {
