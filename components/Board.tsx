@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import type { BoardState, Position, Piece as PieceType, PieceType as PieceTypeName, Player } from '@/lib/types'
-import { getPossibleMoves } from '@/lib/game/board'
+import { getLegalMoves } from '@/lib/game/legalMoves'
 import { canPromoteChess } from '@/lib/game/promotion'
 import Piece from './Piece'
 import PromotionModal from './PromotionModal'
@@ -80,7 +80,7 @@ export default function Board({
       // 自分の別の駒をクリックした場合 = 選択変更
       if (piece && piece.player === currentPlayer) {
         setSelectedSquare(clickedPos)
-        const moves = getPossibleMoves(board, clickedPos, piece)
+        const moves = getLegalMoves(board, clickedPos, piece)
         setHighlightedSquares(moves)
         return
       }
@@ -91,7 +91,7 @@ export default function Board({
     } else if (piece && piece.player === currentPlayer) {
       // 何も選択していない状態で自分の駒をクリック = 選択
       setSelectedSquare(clickedPos)
-      const moves = getPossibleMoves(board, clickedPos, piece)
+      const moves = getLegalMoves(board, clickedPos, piece)
       setHighlightedSquares(moves)
     }
   }

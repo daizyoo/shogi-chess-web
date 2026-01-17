@@ -181,7 +181,12 @@ export default function RoomPage() {
 
     // 詰みチェック
     const nextTurn = myPlayerNumber === 1 ? 2 : 1
-    const isGameOver = isCheckmate(newBoard, nextTurn)
+
+    // キングを取った場合は即座にゲーム終了
+    const isKingCaptured = capturedPiece && (capturedPiece.type === 'king' || capturedPiece.type === 'chess_king')
+
+    // 詰み判定（キングを取っていない場合のみチェック）
+    const isGameOver = isKingCaptured || isCheckmate(newBoard, nextTurn)
 
     // APIで手を送信
     try {
