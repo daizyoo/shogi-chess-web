@@ -19,7 +19,6 @@ export default function SelectBoardPage() {
   const boardTypes = [
     { id: 'shogi', name: '将棋', description: '9x9 盤面、持ち駒あり' },
     { id: 'chess', name: 'チェス', description: '8x8 盤面、持ち駒なし' },
-    { id: 'hybrid', name: 'ハイブリッド', description: '9x9 盤面、将棋 vs チェス' },
   ]
 
   const handleSelectBoard = (boardType: string) => {
@@ -53,10 +52,11 @@ export default function SelectBoardPage() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+          gridTemplateColumns: 'repeat(2, minmax(250px, 300px))',
           gap: 'var(--spacing-lg)',
-          maxWidth: '900px',
+          maxWidth: '700px',
           margin: '0 auto mb-xl',
+          justifyContent: 'center',
         }}
       >
         {boardTypes.map((board) => (

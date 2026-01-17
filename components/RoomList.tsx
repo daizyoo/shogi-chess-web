@@ -216,13 +216,13 @@ export default function RoomList() {
             <div>
               <label className="block text-sm font-medium mb-1">盤の種類を選択</label>
               <div style={{ display: 'flex', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
-                {['shogi', 'chess', 'hybrid'].map((type) => (
+                {['shogi', 'chess'].map((type) => (
                   <button
                     key={type}
                     onClick={() => setSelectedBoardType(type)}
                     className={`btn btn-sm ${selectedBoardType === type ? 'btn-primary' : 'btn-outline'}`}
                   >
-                    {type === 'shogi' ? '将棋' : type === 'chess' ? 'チェス' : 'ハイブリッド'}
+                    {type === 'shogi' ? '将棋' : 'チェス'}
                   </button>
                 ))}
               </div>

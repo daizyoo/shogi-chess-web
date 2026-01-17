@@ -37,9 +37,6 @@ export default async function handler(
     if (boardType === 'chess') {
       p1Config = { isShogi: false, useHandPieces: false }
       p2Config = { isShogi: false, useHandPieces: false }
-    } else if (boardType === 'hybrid') {
-      p1Config = { isShogi: true, useHandPieces: true }
-      p2Config = { isShogi: false, useHandPieces: false }
     } else if (boardType === 'custom' && customData) {
       p1Config = customData.player1
       p2Config = customData.player2

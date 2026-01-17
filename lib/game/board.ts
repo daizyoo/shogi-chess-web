@@ -1,13 +1,13 @@
 import type { BoardState, Piece, Position, PieceType, Player } from '../types'
 
 // 盤のサイズを取得
-export function getBoardSize(boardType: 'shogi' | 'chess' | 'hybrid' | 'custom', customSize?: number): number {
+export function getBoardSize(boardType: 'shogi' | 'chess' | 'custom', customSize?: number): number {
   if (boardType === 'custom' && customSize) return customSize
   return boardType === 'chess' ? 8 : 9
 }
 
 // 初期盤面を作成
-export function createInitialBoard(boardType: 'shogi' | 'chess' | 'hybrid' | 'custom', customData?: any): BoardState {
+export function createInitialBoard(boardType: 'shogi' | 'chess' | 'custom', customData?: any): BoardState {
   if (boardType === 'custom' && customData) {
     return setupBoardFromStrings(customData.board)
   }
@@ -21,8 +21,6 @@ export function createInitialBoard(boardType: 'shogi' | 'chess' | 'hybrid' | 'cu
     return createShogiBoard()
   } else if (boardType === 'chess') {
     return createChessBoard()
-  } else if (boardType === 'hybrid') {
-    return createHybridBoard()
   }
 
   return board
@@ -138,45 +136,7 @@ function createChessBoard(): BoardState {
   return board
 }
 
-function createHybridBoard(): BoardState {
-  const board: BoardState = Array(9)
-    .fill(null)
-    .map(() => Array(9).fill(null))
 
-  // Player 2 - Chess pieces
-  board[0][0] = { type: 'chess_rook', player: 2 }
-  board[0][1] = { type: 'chess_knight', player: 2 }
-  board[0][2] = { type: 'chess_bishop', player: 2 }
-  board[0][3] = { type: 'chess_queen', player: 2 }
-  board[0][4] = { type: 'chess_king', player: 2 }
-  board[0][5] = { type: 'chess_bishop', player: 2 }
-  board[0][6] = { type: 'chess_knight', player: 2 }
-  board[0][7] = { type: 'chess_rook', player: 2 }
-
-  for (let i = 0; i < 8; i++) {
-    board[1][i] = { type: 'chess_pawn', player: 2 }
-  }
-
-  // Player 1 - Shogi pieces
-  for (let i = 0; i < 9; i++) {
-    board[6][i] = { type: 'pawn', player: 1 }
-  }
-
-  board[7][1] = { type: 'bishop', player: 1 }
-  board[7][7] = { type: 'rook', player: 1 }
-
-  board[8][0] = { type: 'lance', player: 1 }
-  board[8][1] = { type: 'knight', player: 1 }
-  board[8][2] = { type: 'silver', player: 1 }
-  board[8][3] = { type: 'gold', player: 1 }
-  board[8][4] = { type: 'king', player: 1 }
-  board[8][5] = { type: 'gold', player: 1 }
-  board[8][6] = { type: 'silver', player: 1 }
-  board[8][7] = { type: 'knight', player: 1 }
-  board[8][8] = { type: 'lance', player: 1 }
-
-  return board
-}
 
 // 駒の表示名を取得
 export function getPieceName(type: PieceType, promoted?: boolean): string {
