@@ -52,23 +52,31 @@ export function useSupabaseRealtime({
           filter: `room_id=eq.${roomId}`,
         },
         async (payload) => {
-          if (onGameStateUpdateRef.current && payload.new) {
-            // roomsテーブルからcurrent_turnを取得
-            const { data: room } = await supabase
-              .from('rooms')
-              .select('current_turn')
-              .eq('id', roomId)
-              .single() as any
+          try {
+            if (onGameStateUpdateRef.current && payload.new) {
+              // roomsテーブルからcurrent_turnを取得
+              const { data: room } = await supabase
+                .from('rooms')
+                .select('current_turn')
+                .eq('id', roomId)
+                .single() as any
 
-            const gameState: GameState = {
-              board: payload.new.board as any,
-              hands: payload.new.hands as any,
-              currentTurn: room?.current_turn || 1,
-              moves: [],
-              status: payload.new.status as any,
-              winner: payload.new.winner as any,
+              const gameState: GameState = {
+                board: payload.new.board as any,
+                hands: payload.new.hands as any,
+                currentTurn: room?.current_turn || 1,
+                moves: [],
+                status: payload.new.status as any,
+                winner: payload.new.winner as any,
+              }
+              onGameStateUpdateRef.current(gameState)
             }
-            onGameStateUpdateRef.current(gameState)
+          } catch (error: any) {
+            // AbortErrorは無視
+            if (error?.name === 'AbortError' || error?.message?.includes('aborted')) {
+              return
+            }
+            console.error('Error in game state update:', error)
           }
         }
       )

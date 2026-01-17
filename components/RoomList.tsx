@@ -56,8 +56,13 @@ export default function RoomList() {
 
       if (error) throw error
       setRooms(data || [])
-    } catch (error) {
+    } catch (error: any) {
+      // AbortErrorは無視（ページ遷移などで操作がキャンセルされた場合）
+      if (error?.name === 'AbortError' || error?.message?.includes('aborted')) {
+        return
+      }
       console.error('Error fetching rooms:', error)
+      // ユーザーにエラーを表示しない（バックグラウンド処理のため）
     } finally {
       setLoading(false)
     }
