@@ -69,11 +69,12 @@ export default function RoomList() {
     // 初回フェッチ
     fetchWithRetry()
 
-    // タイムアウト設定（10秒経ってもloadingがtrueなら強制的にfalseに）
+    // タイムアウト設定（10秒経ってもloadingがtrueなら強制的にエラー状態に）
     const timeoutId = setTimeout(() => {
       if (loading) {
         setLoading(false)
-        console.warn('Fetch timeout - setting loading to false')
+        setErrorState(true) // タイムアウト時もエラー状態に設定
+        console.warn('Fetch timeout - setting error state')
       }
     }, 10000)
 
