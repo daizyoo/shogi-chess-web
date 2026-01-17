@@ -19,7 +19,33 @@ interface Room {
 export default function RoomList() {
   const [rooms, setRooms] = useState<Room[]>([])
   const [loading, setLoading] = useState(true)
+  const [errorState, setErrorState] = useState(false)
   const router = useRouter()
+
+  const fetchRooms = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('rooms')
+        .select('*')
+        .in('status', ['waiting', 'playing'])
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      if (error) throw error
+      setRooms(data || [])
+      setErrorState(false) // 成功したらエラー状態をクリア
+    } catch (error: any) {
+      // AbortErrorは無視（ページ遷移などで操作がキャンセルされた場合）
+      if (error?.name === 'AbortError' || error?.message?.includes('aborted')) {
+        return
+      }
+      console.error('Error fetching rooms:', error)
+      // リトライ後も失敗した場合のみエラー状態を設定
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     let retryCount = 0
@@ -33,6 +59,9 @@ export default function RoomList() {
           retryCount++
           console.log(`Retry fetching rooms (${retryCount}/${maxRetries})`)
           setTimeout(fetchWithRetry, 1000 * retryCount) // 指数バックオフ
+        } else {
+          // 全てのリトライが失敗した場合
+          setErrorState(true)
         }
       }
     }
@@ -76,33 +105,9 @@ export default function RoomList() {
     }
   }, [])
 
-  const fetchRooms = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('rooms')
-        .select('*')
-        .in('status', ['waiting', 'playing'])
-        .order('created_at', { ascending: false })
-        .limit(20)
-
-      if (error) throw error
-      setRooms(data || [])
-    } catch (error: any) {
-      // AbortErrorは無視（ページ遷移などで操作がキャンセルされた場合）
-      if (error?.name === 'AbortError' || error?.message?.includes('aborted')) {
-        return
-      }
-      console.error('Error fetching rooms:', error)
-      // ユーザーにエラーを表示しない（バックグラウンド処理のため）
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const [isCreating, setIsCreating] = useState(false)
   const [newRoomName, setNewRoomName] = useState('')
   const [selectedBoardType, setSelectedBoardType] = useState('shogi')
-  const [errorState, setErrorState] = useState(false)
 
   const createRoom = async (customData?: any) => {
     if (!newRoomName) {
@@ -161,6 +166,27 @@ export default function RoomList() {
     return (
       <div className="container text-center" style={{ paddingTop: '2rem' }}>
         <div className="pulse">読み込み中...</div>
+      </div>
+    )
+  }
+
+  if (errorState) {
+    return (
+      <div className="container text-center" style={{ paddingTop: '2rem' }}>
+        <div className="card" style={{ padding: 'var(--spacing-2xl)', backgroundColor: 'var(--color-error-surface)' }}>
+          <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 'bold', marginBottom: 'var(--spacing-md)', color: 'var(--color-error)' }}>
+            ⚠️ 接続できませんでした
+          </h2>
+          <p className="text-muted" style={{ marginBottom: 'var(--spacing-lg)' }}>
+            サーバーに接続できません。ネットワーク接続を確認してください。
+          </p>
+          <button
+            className="btn btn-primary"
+            onClick={() => window.location.reload()}
+          >
+            🔄 ページをリロード
+          </button>
+        </div>
       </div>
     )
   }
