@@ -22,7 +22,31 @@ export default function RoomList() {
   const router = useRouter()
 
   useEffect(() => {
-    fetchRooms()
+    let retryCount = 0
+    const maxRetries = 3
+
+    const fetchWithRetry = async () => {
+      try {
+        await fetchRooms()
+      } catch (error) {
+        if (retryCount < maxRetries) {
+          retryCount++
+          console.log(`Retry fetching rooms (${retryCount}/${maxRetries})`)
+          setTimeout(fetchWithRetry, 1000 * retryCount) // 指数バックオフ
+        }
+      }
+    }
+
+    // 初回フェッチ
+    fetchWithRetry()
+
+    // タイムアウト設定（10秒経ってもloadingがtrueなら強制的にfalseに）
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        setLoading(false)
+        console.warn('Fetch timeout - setting loading to false')
+      }
+    }, 10000)
 
     // リアルタイム更新を購読
     const channel = supabase
@@ -38,9 +62,16 @@ export default function RoomList() {
           fetchRooms()
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('Rooms list subscription status:', status)
+        if (status === 'CHANNEL_ERROR') {
+          console.error('Channel error - retrying...')
+          setTimeout(() => channel.subscribe(), 2000)
+        }
+      })
 
     return () => {
+      clearTimeout(timeoutId)
       channel.unsubscribe()
     }
   }, [])
@@ -71,6 +102,7 @@ export default function RoomList() {
   const [isCreating, setIsCreating] = useState(false)
   const [newRoomName, setNewRoomName] = useState('')
   const [selectedBoardType, setSelectedBoardType] = useState('shogi')
+  const [errorState, setErrorState] = useState(false)
 
   const createRoom = async (customData?: any) => {
     if (!newRoomName) {
