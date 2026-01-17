@@ -40,6 +40,13 @@ export default function HomePage() {
           >
             👥 2人で対戦
           </button>
+          <button
+            className="btn btn-secondary"
+            onClick={() => router.push('/editor')}
+            style={{ flex: 1, minWidth: '200px' }}
+          >
+            ⚙️ カスタムボード作成
+          </button>
         </div>
         <p className="text-muted mt-sm" style={{ fontSize: 'var(--font-size-sm)' }}>
           インターネット接続不要で、このデバイス上で直接プレイできます
