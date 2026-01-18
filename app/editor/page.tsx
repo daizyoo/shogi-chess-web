@@ -17,6 +17,7 @@ export default function BoardEditorPage() {
   const router = useRouter()
   const { user, profile } = useAuth()
   const [boardName, setBoardName] = useState('Custom Board')
+  const [boardDescription, setBoardDescription] = useState('')
   const [boardSize, setBoardSize] = useState<8 | 9>(9)
   const [board, setBoard] = useState<string[]>(EMPTY_9x9_BOARD)
   const [isPublic, setIsPublic] = useState(false)
@@ -65,6 +66,7 @@ export default function BoardEditorPage() {
   const handleExportJSON = () => {
     const data: CustomBoardData = {
       name: boardName,
+      description: boardDescription || undefined,
       board,
       player1: player1Config,
       player2: player2Config,
@@ -97,6 +99,8 @@ export default function BoardEditorPage() {
           user_id: user.id,
           name: boardName,
           board_data: {
+            name: boardName,
+            description: boardDescription || undefined,
             board,
             player1: player1Config,
             player2: player2Config,
@@ -128,6 +132,7 @@ export default function BoardEditorPage() {
       try {
         const data: CustomBoardData = JSON.parse(event.target?.result as string)
         setBoardName(data.name)
+        setBoardDescription(data.description || '')
         setBoard(data.board)
         setPlayer1Config(data.player1)
         setPlayer2Config(data.player2)
@@ -167,6 +172,20 @@ export default function BoardEditorPage() {
             onChange={(e) => setBoardName(e.target.value)}
             className="input"
             style={{ width: '100%', maxWidth: '400px' }}
+          />
+        </div>
+
+        <div style={{ marginBottom: 'var(--spacing-md)' }}>
+          <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)' }}>
+            Description (Optional):
+          </label>
+          <textarea
+            value={boardDescription}
+            onChange={(e) => setBoardDescription(e.target.value)}
+            className="input"
+            placeholder="このボードの説明を入力..."
+            rows={3}
+            style={{ width: '100%', maxWidth: '600px', resize: 'vertical' }}
           />
         </div>
 
