@@ -9,17 +9,69 @@ interface BoardEditorProps {
   onChange: (newBoard: string[]) => void
 }
 
+type PieceMode = 'shogi' | 'chess' | 'both'
+
 export default function BoardEditor({ board, onChange }: BoardEditorProps) {
   const [selectedPiece, setSelectedPiece] = useState<PieceSymbol | null>(null)
   const [isEraser, setIsEraser] = useState(false)
+  const [pieceMode, setPieceMode] = useState<PieceMode>('both')
+
+  // 王/Kingの数をカウント
+  const countKings = (currentBoard: string[]): { p1Kings: number, p2Kings: number } => {
+    let p1Kings = 0
+    let p2Kings = 0
+
+    currentBoard.forEach(row => {
+      const cells = row.split(/\s+/)
+      cells.forEach(cell => {
+        if (cell === 'K' || cell === 'CK') p1Kings++
+        if (cell === 'k' || cell === 'ck') p2Kings++
+      })
+    })
+
+    return { p1Kings, p2Kings }
+  }
+
+  // 王/Kingを配置可能かチェック
+  const canPlaceKing = (piece: PieceSymbol, currentBoard: string[]): boolean => {
+    const { p1Kings, p2Kings } = countKings(currentBoard)
+
+    // Player 1のKing/王
+    if (piece === 'K' || piece === 'CK') {
+      return p1Kings === 0
+    }
+
+    // Player 2のKing/王
+    if (piece === 'k' || piece === 'ck') {
+      return p2Kings === 0
+    }
+
+    return true
+  }
 
   const handleCellClick = (row: number, col: number) => {
     const newBoard = [...board]
     const cells = newBoard[row].split(/\s+/)
+    const currentPiece = cells[col]
 
     if (isEraser) {
       cells[col] = '.'
     } else if (selectedPiece) {
+      // 王/Kingの配置制限チェック
+      if (selectedPiece === 'K' || selectedPiece === 'CK' ||
+        selectedPiece === 'k' || selectedPiece === 'ck') {
+        // 既に同じマスに駒がある場合は置き換え可能なので一時的に削除
+        const boardWithoutCurrent = [...newBoard]
+        const cellsTemp = boardWithoutCurrent[row].split(/\s+/)
+        cellsTemp[col] = '.'
+        boardWithoutCurrent[row] = cellsTemp.join(' ')
+
+        if (!canPlaceKing(selectedPiece, boardWithoutCurrent)) {
+          alert('各プレイヤーは王(K)またはKing(CK)を1つのみ配置できます')
+          return
+        }
+      }
+
       cells[col] = selectedPiece
     }
 
@@ -44,8 +96,42 @@ export default function BoardEditor({ board, onChange }: BoardEditorProps) {
   const cols = board[0]?.split(/\s+/).length || 8
   const rows = board.length
 
+  // 駒タイプフィルタリング
+  const getFilteredPieces = (pieces: readonly PieceSymbol[], type: 'shogi' | 'chess') => {
+    if (pieceMode === 'both') return pieces
+    if (pieceMode === type) return pieces
+    return []
+  }
+
   return (
     <div>
+      {/* Piece Mode Selector */}
+      <div style={{ marginBottom: 'var(--spacing-md)', padding: 'var(--spacing-sm)', backgroundColor: 'var(--surface-alt)', borderRadius: 'var(--radius-md)' }}>
+        <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: 'var(--spacing-xs)' }}>
+          駒タイプ選択:
+        </div>
+        <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
+          <button
+            onClick={() => setPieceMode('shogi')}
+            className={`btn btn-sm ${pieceMode === 'shogi' ? 'btn-primary' : 'btn-outline'}`}
+          >
+            将棋のみ
+          </button>
+          <button
+            onClick={() => setPieceMode('chess')}
+            className={`btn btn-sm ${pieceMode === 'chess' ? 'btn-primary' : 'btn-outline'}`}
+          >
+            チェスのみ
+          </button>
+          <button
+            onClick={() => setPieceMode('both')}
+            className={`btn btn-sm ${pieceMode === 'both' ? 'btn-primary' : 'btn-outline'}`}
+          >
+            両方
+          </button>
+        </div>
+      </div>
+
       {/* Piece Palette */}
       <div style={{ marginBottom: 'var(--spacing-md)' }}>
         <h3 style={{ marginBottom: 'var(--spacing-sm)' }}>Piece Palette</h3>
@@ -60,7 +146,7 @@ export default function BoardEditor({ board, onChange }: BoardEditorProps) {
           <div style={{ marginBottom: 'var(--spacing-xs)' }}>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>将棋駒</div>
             <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
-              {SHOGI_PIECES.map((piece) => (
+              {getFilteredPieces(SHOGI_PIECES, 'shogi').map((piece) => (
                 <button
                   key={piece}
                   onClick={() => {
@@ -80,7 +166,7 @@ export default function BoardEditor({ board, onChange }: BoardEditorProps) {
           <div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>チェス駒</div>
             <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
-              {CHESS_PIECES.map((piece) => (
+              {getFilteredPieces(CHESS_PIECES, 'chess').map((piece) => (
                 <button
                   key={piece}
                   onClick={() => {
@@ -107,7 +193,7 @@ export default function BoardEditor({ board, onChange }: BoardEditorProps) {
           <div style={{ marginBottom: 'var(--spacing-xs)' }}>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>将棋駒</div>
             <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
-              {SHOGI_PIECES.map((piece) => {
+              {getFilteredPieces(SHOGI_PIECES, 'shogi').map((piece) => {
                 const lowerPiece = piece.toLowerCase() as PieceSymbol
                 return (
                   <button
@@ -130,7 +216,7 @@ export default function BoardEditor({ board, onChange }: BoardEditorProps) {
           <div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>チェス駒</div>
             <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
-              {CHESS_PIECES.map((piece) => {
+              {getFilteredPieces(CHESS_PIECES, 'chess').map((piece) => {
                 const lowerPiece = piece.toLowerCase() as PieceSymbol
                 return (
                   <button
