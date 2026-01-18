@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/components/Auth/AuthProvider'
 import RoomList from '@/components/RoomList'
 
 export default function HomePage() {

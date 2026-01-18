@@ -49,14 +49,9 @@ export default function Navbar() {
           {!loading && (
             <>
               {user ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                  <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-muted)' }}>
-                    {profile?.display_name || user.email}
-                  </span>
-                  <button onClick={handleSignOut} className="btn btn-sm btn-outline">
-                    ログアウト
-                  </button>
-                </div>
+                <Link href="/settings" className="btn btn-sm btn-outline">
+                  アカウントページ
+                </Link>
               ) : (
                 <Link href="/login" className="btn btn-sm btn-primary">
                   ログイン
