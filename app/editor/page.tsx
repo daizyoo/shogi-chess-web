@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import BoardEditor from '@/components/BoardEditor'
 import { useAuth } from '@/components/Auth/AuthProvider'
 import { supabase } from '@/lib/supabase/client'
-import type { CustomBoardData, PieceSymbol, PromotionZoneConfig } from '@/lib/board/types'
+import type { CustomBoardData, PieceSymbol, PromotionZoneConfig, PieceTypePromotionZones } from '@/lib/board/types'
 import {
   DEFAULT_CHESS_BOARD,
   DEFAULT_SHOGI_BOARD,
@@ -33,13 +33,13 @@ function BoardEditorContent() {
     useHandPieces: true,
   })
 
-  const [player1PromotionZone, setPlayer1PromotionZone] = useState<PromotionZoneConfig>({
-    rows: 3,
-    fromTop: true,
+  const [player1PromotionZones, setPlayer1PromotionZones] = useState<PieceTypePromotionZones>({
+    shogi: { rows: 3, fromTop: true },
+    chess: { rows: 1, fromTop: true },
   })
-  const [player2PromotionZone, setPlayer2PromotionZone] = useState<PromotionZoneConfig>({
-    rows: 3,
-    fromTop: false,
+  const [player2PromotionZones, setPlayer2PromotionZones] = useState<PieceTypePromotionZones>({
+    shogi: { rows: 3, fromTop: false },
+    chess: { rows: 1, fromTop: false },
   })
 
   // URLパラメータからボードIDを取得して既存ボードをロード

@@ -6,8 +6,8 @@ export interface CustomBoardData {
   player1: PlayerConfig
   player2: PlayerConfig
   promotionZones?: {  // Optional for backward compatibility
-    player1: PromotionZoneConfig
-    player2: PromotionZoneConfig
+    player1: PromotionZoneConfig | PieceTypePromotionZones  // Single or piece-type-specific
+    player2: PromotionZoneConfig | PieceTypePromotionZones
   }
 }
 
@@ -18,6 +18,12 @@ export interface PlayerConfig {
 export interface PromotionZoneConfig {
   rows: number        // Number of rows in promotion zone (e.g., 3)
   fromTop: boolean    // true: from top of board, false: from bottom
+}
+
+// Piece-type-specific promotion zones
+export interface PieceTypePromotionZones {
+  shogi: PromotionZoneConfig    // Promotion zone for Shogi pieces
+  chess: PromotionZoneConfig    // Promotion zone for Chess pieces
 }
 
 export type PieceSymbol =
