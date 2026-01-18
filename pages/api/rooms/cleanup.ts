@@ -5,8 +5,19 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  if (req.method !== 'POST') {
+  // GETのみ許可（Vercel CronはGETを使用）
+  if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  // Vercel Cronからのリクエストを検証
+  const cronSecret = process.env.CRON_SECRET
+  if (cronSecret) {
+    const authHeader = req.headers.authorization
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      console.error('Unauthorized cleanup attempt')
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
   }
 
   try {
