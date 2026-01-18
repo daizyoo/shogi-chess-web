@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import BoardEditor from '@/components/BoardEditor'
 import { useAuth } from '@/components/Auth/AuthProvider'
 import { supabase } from '@/lib/supabase/client'
@@ -13,15 +13,18 @@ import {
   EMPTY_9x9_BOARD
 } from '@/lib/board/types'
 
-export default function BoardEditorPage() {
+function BoardEditorContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, profile } = useAuth()
+  const [boardId, setBoardId] = useState<string | null>(null)
   const [boardName, setBoardName] = useState('Custom Board')
   const [boardDescription, setBoardDescription] = useState('')
   const [boardSize, setBoardSize] = useState<8 | 9>(9)
   const [board, setBoard] = useState<string[]>(EMPTY_9x9_BOARD)
   const [isPublic, setIsPublic] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   const [player1Config, setPlayer1Config] = useState({
     useHandPieces: true,
@@ -38,6 +41,52 @@ export default function BoardEditorPage() {
     rows: 3,
     fromTop: false,
   })
+
+  // URLパラメータからボードIDを取得して既存ボードをロード
+  useEffect(() => {
+    const id = searchParams?.get('id')
+    if (id && user) {
+      loadExistingBoard(id)
+    }
+  }, [searchParams, user])
+
+  const loadExistingBoard = async (id: string) => {
+    setLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('custom_boards')
+        .select('*')
+        .eq('id', id)
+        .eq('user_id', user!.id)
+        .single()
+
+      if (error) throw error
+
+      if (data) {
+        const boardRecord = data as any
+        setBoardId(boardRecord.id)
+        setBoardName(boardRecord.name)
+        setIsPublic(boardRecord.is_public)
+
+        const boardData = boardRecord.board_data
+        setBoardDescription(boardData.description || '')
+        setBoard(boardData.board)
+        setPlayer1Config(boardData.player1)
+        setPlayer2Config(boardData.player2)
+        setBoardSize(boardData.board[0].split(/\s+/).length as 8 | 9)
+
+        if (boardData.promotionZones) {
+          setPlayer1PromotionZone(boardData.promotionZones.player1)
+          setPlayer2PromotionZone(boardData.promotionZones.player2)
+        }
+      }
+    } catch (error: any) {
+      console.error('Failed to load board:', error)
+      alert('ボードの読み込みに失敗しました')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const loadTemplate = (template: 'chess' | 'shogi' | 'empty') => {
     switch (template) {
@@ -93,29 +142,62 @@ export default function BoardEditorPage() {
 
     setSaving(true)
     try {
-      const { data, error } = await (supabase
-        .from('custom_boards') as any)
-        .insert({
-          user_id: user.id,
-          name: boardName,
-          board_data: {
-            name: boardName,
-            description: boardDescription || undefined,
-            board,
-            player1: player1Config,
-            player2: player2Config,
-            promotionZones: {
-              player1: player1PromotionZone,
-              player2: player2PromotionZone,
-            },
-          },
-          is_public: isPublic,
-          user_display_name: profile?.display_name || user.email,
-        })
-        .select()
+      const boardData = {
+        name: boardName,
+        description: boardDescription || undefined,
+        board,
+        player1: player1Config,
+        player2: player2Config,
+        promotionZones: {
+          player1: player1PromotionZone,
+          player2: player2PromotionZone,
+        },
+      }
 
-      if (error) throw error
-      alert('ボードを保存しました！')
+      if (boardId) {
+        // 更新
+        const session = await supabase.auth.getSession()
+        if (!session.data.session) {
+          throw new Error('Authentication required')
+        }
+
+        const response = await fetch(`/api/boards/${boardId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.data.session.access_token}`,
+          },
+          body: JSON.stringify({
+            name: boardName,
+            board_data: boardData,
+            is_public: isPublic,
+          }),
+        })
+
+        if (!response.ok) throw new Error('Failed to update board')
+        alert('ボードを更新しました！')
+      } else {
+        // 新規作成
+        const { data, error } = await (supabase
+          .from('custom_boards') as any)
+          .insert({
+            user_id: user.id,
+            name: boardName,
+            board_data: boardData,
+            is_public: isPublic,
+            user_display_name: profile?.display_name || user.email,
+          })
+          .select()
+
+        if (error) throw error
+
+        if (data && data[0]) {
+          setBoardId(data[0].id)
+          router.push(`/editor?id=${data[0].id}`)
+        }
+
+        alert('ボードを保存しました！')
+      }
     } catch (error: any) {
       alert(`保存に失敗しました: ${error.message}`)
     } finally {
@@ -410,5 +492,13 @@ export default function BoardEditorPage() {
         </button>
       </div>
     </main>
+  )
+}
+
+export default function BoardEditorPage() {
+  return (
+    <Suspense fallback={<div className="container text-center" style={{ paddingTop: '2rem' }}>読み込み中...</div>}>
+      <BoardEditorContent />
+    </Suspense>
   )
 }

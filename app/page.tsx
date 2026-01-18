@@ -47,6 +47,13 @@ export default function HomePage() {
           >
             ⚙️ カスタムボード作成
           </button>
+          <button
+            className="btn btn-outline"
+            onClick={() => router.push('/my-boards')}
+            style={{ flex: 1, minWidth: '200px' }}
+          >
+            📂 マイボード
+          </button>
         </div>
         <p className="text-muted mt-sm" style={{ fontSize: 'var(--font-size-sm)' }}>
           インターネット接続不要で、このデバイス上で直接プレイできます
