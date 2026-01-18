@@ -4,5 +4,28 @@
             "path": "/api/rooms/cleanup",
             "schedule": "0 0 * * *"
         }
+    ],
+    "headers": [
+        {
+            "source": "/api/game/(.*)",
+            "headers": [
+                {
+                    "key": "Cache-Control",
+                    "value": "no-store, no-cache, must-revalidate"
+                }
+            ]
+        },
+        {
+            "source": "/api/rooms/(.*)",
+            "headers": [
+                {
+                    "key": "Cache-Control",
+                    "value": "no-store, no-cache, must-revalidate"
+                }
+            ]
+        }
+    ],
+    "regions": [
+        "hnd1"
     ]
 }

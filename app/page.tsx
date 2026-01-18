@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/components/Auth/AuthProvider'
 import RoomList from '@/components/RoomList'
 
 export default function HomePage() {
@@ -46,6 +47,13 @@ export default function HomePage() {
             style={{ flex: 1, minWidth: '200px' }}
           >
             ⚙️ カスタムボード作成
+          </button>
+          <button
+            className="btn btn-outline"
+            onClick={() => router.push('/my-boards')}
+            style={{ flex: 1, minWidth: '200px' }}
+          >
+            📂 マイボード
           </button>
         </div>
         <p className="text-muted mt-sm" style={{ fontSize: 'var(--font-size-sm)' }}>

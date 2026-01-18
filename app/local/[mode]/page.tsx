@@ -54,7 +54,6 @@ export default function SelectBoardPage() {
           display: 'grid',
           gridTemplateColumns: 'repeat(2, minmax(250px, 300px))',
           gap: 'var(--spacing-lg)',
-          maxWidth: '700px',
           margin: '0 auto mb-xl',
           justifyContent: 'center',
         }}
