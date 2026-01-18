@@ -230,7 +230,7 @@ export default function MyBoardsPage() {
                       <button
                         className="btn btn-sm"
                         onClick={() => handleDelete(board.id)}
-                        style={{ backgroundColor: 'var(--color-danger)', color: 'white' }}
+                        style={{ backgroundColor: '#dc2626', color: 'white', border: 'none' }}
                       >
                         削除する
                       </button>
