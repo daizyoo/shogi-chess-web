@@ -140,7 +140,8 @@ export default function LocalGamePage() {
         const aiMove = await aiServiceRef.current?.getBestMove(gameState.board, 2)
 
         if (aiMove && aiMove.from) {
-          handleMove(aiMove.from, aiMove.to)
+          // AIからの呼び出しであることを明示
+          executeMove(aiMove.from, aiMove.to, true)
         }
       } catch (error) {
         console.error('AI move failed:', error)
@@ -220,11 +221,18 @@ export default function LocalGamePage() {
     setPromotionDialog(null)
   }
 
-  const handleMove = (from: Position, to: Position) => {
+  /**
+   * 実際の駒移動処理（内部関数）
+   * @param fromAI - AIからの呼び出しかどうか
+   */
+  const executeMove = (from: Position, to: Position, fromAI: boolean = false) => {
     if (!gameState) return
 
     const piece = gameState.board[from.row][from.col]
     if (!piece) return
+
+    // PvAモードでAIのターン中にプレイヤーが操作しようとした場合は拒否
+    if (!fromAI && mode === 'pva' && gameState.currentTurn === 2) return
 
     const boardSize = gameState.board.length
 
@@ -285,8 +293,21 @@ export default function LocalGamePage() {
     executeMoveWithPromotion(from, to, false)
   }
 
+  /**
+   * プレイヤーからの駒移動（UIイベントハンドラ）
+   */
+  const handleMove = (from: Position, to: Position) => {
+    // PvAモードでAIのターン中はプレイヤーの操作を完全にブロック
+    if (mode === 'pva' && gameState.currentTurn === 2) return
+
+    executeMove(from, to, false)
+  }
+
   const handleDrop = (row: number, col: number) => {
     if (!gameState || !selectedHandPiece) return
+
+    // PvAモードでAIのターン中にプレイヤーが操作しようとした場合は拒否
+    if (mode === 'pva' && gameState.currentTurn === 2) return
 
     const newBoard = gameState.board.map((r) => [...r])
     newBoard[row][col] = {
@@ -328,6 +349,9 @@ export default function LocalGamePage() {
 
   const handleSelectHandPiece = (pieceType: PieceType) => {
     if (!gameState) return
+
+    // PvAモードでAIのターン中にプレイヤーが操作しようとした場合は拒否
+    if (mode === 'pva' && gameState.currentTurn === 2) return
     setSelectedHandPiece(selectedHandPiece === pieceType ? null : pieceType)
   }
 
