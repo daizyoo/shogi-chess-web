@@ -41,8 +41,7 @@ CREATE TABLE game_states (
 );
 
 -- moves テーブル
-CREATE TABLE moves (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+CREATE TABLE moves (\n    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     room_id UUID REFERENCES rooms(id) ON DELETE CASCADE,
     player INTEGER NOT NULL,
     from_row INTEGER,
@@ -55,10 +54,24 @@ CREATE TABLE moves (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- custom_boards テーブル
+CREATE TABLE custom_boards (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    board JSONB NOT NULL,
+    player1 JSONB NOT NULL,
+    player2 JSONB NOT NULL,
+    promotion_zones JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- インデックス
 CREATE INDEX idx_rooms_status ON rooms(status);
 CREATE INDEX idx_game_states_room_id ON game_states(room_id);
 CREATE INDEX idx_moves_room_id ON moves(room_id);
+CREATE INDEX idx_custom_boards_user_id ON custom_boards(user_id);
 ```
 
 クエリを実行（Run をクリック）
@@ -70,6 +83,7 @@ CREATE INDEX idx_moves_room_id ON moves(room_id);
    - `rooms`
    - `game_states`
    - `moves`
+   - `custom_boards`（オプション：カスタムボード機能使用時）
 
 ## 4. Row Level Security (RLS) の設定（オプション）
 
@@ -82,17 +96,22 @@ CREATE INDEX idx_moves_room_id ON moves(room_id);
 ALTER TABLE rooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE game_states ENABLE ROW LEVEL SECURITY;
 ALTER TABLE moves ENABLE ROW LEVEL SECURITY;
+ALTER TABLE custom_boards ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow read access to all users" ON rooms FOR SELECT USING (true);
 CREATE POLICY "Allow read access to all users" ON game_states FOR SELECT USING (true);
 CREATE POLICY "Allow read access to all users" ON moves FOR SELECT USING (true);
+CREATE POLICY "Allow read access to all users" ON custom_boards FOR SELECT USING (true);
 
 CREATE POLICY "Allow insert to all" ON rooms FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow insert to all" ON game_states FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow insert to all" ON moves FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow insert to all" ON custom_boards FOR INSERT WITH CHECK (true);
 
 CREATE POLICY "Allow update to all" ON rooms FOR UPDATE USING (true);
 CREATE POLICY "Allow update to all" ON game_states FOR UPDATE USING (true);
+CREATE POLICY "Allow users to update own boards" ON custom_boards FOR UPDATE USING (true);
+CREATE POLICY "Allow users to delete own boards" ON custom_boards FOR DELETE USING (true);
 ```
 
 ## 5. 環境変数の設定

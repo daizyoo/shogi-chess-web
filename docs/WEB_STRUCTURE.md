@@ -3,265 +3,333 @@
 ## 概要
 
 このドキュメントは、将棋とチェスのハイブリッドゲームの Web 版の全体構成を定義します。
-Rust で実装された既存のゲームロジックと AI 機能を Web ブラウザ上で動作させることを目指します。
+Next.js 14 (App Router) と Supabase を使用した、フルスタックのリアルタイム対戦ゲームです。
 
 ## 技術スタック
 
 ### フロントエンド
 
-- **HTML5** - ゲームの構造
-- **CSS3** - スタイリングとアニメーション
-- **JavaScript (ES6+)** - ゲームロジックと UI 制御
+- **Next.js 14** - React フレームワーク (App Router)
+- **TypeScript** - 型安全性
+- **React 18** - UI ライブラリ
+- **CSS Modules** - スタイリング
 
-### バックエンド（オプション）
+### バックエンド
 
-- **WebAssembly (WASM)** - Rust コードを Web 上で実行するために使用
-- **wasm-bindgen** - Rust と JavaScript 間のバインディング
-- **wasm-pack** - WASM ビルドツール
+- **Supabase** - データベース & リアルタイム通信
+  - PostgreSQL - データ永続化
+  - Realtime - WebSocket ベースの双方向通信
+  - Row Level Security (RLS) - アクセス制御
 
-### 代替案
+### デプロイ
 
-- **完全 JavaScript 実装** - Rust コードを参考に JavaScript で再実装
+- **Vercel** - ホスティング
 
 ## ディレクトリ構成
 
 ```
 web/
-├── WEB_STRUCTURE.md          # このファイル
-├── README.md                 # Web版の説明とセットアップ手順
+├── app/                      # Next.js App Router
+│   ├── local/[mode]/[boardType]/
+│   │   └── page.tsx         # ローカル対戦ページ
+│   ├── room/[id]/
+│   │   └── page.tsx         # オンライン対戦ルーム
+│   ├── editor/
+│   │   └── page.tsx         # カスタムボードエディタ
+│   ├── my-boards/
+│   │   └── page.tsx         # マイボード一覧
+│   ├── settings/
+│   │   └── page.tsx         # 設定ページ
+│   ├── layout.tsx           # ルートレイアウト
+│   └── page.tsx             # トップ��ージ
 │
-├── public/                   # 静的ファイル
-│   ├── index.html           # メインHTMLファイル
-│   ├── favicon.ico          # ファビコン
-│   └── assets/              # 画像、音声などのアセット
-│       ├── images/          # 駒の画像など
-│       │   ├── shogi/       # 将棋の駒
-│       │   └── chess/       # チェスの駒
-│       ├── sounds/          # 効果音
-│       └── fonts/           # カスタムフォント
+├── components/              # React コンポーネント
+│   ├── Auth/
+│   │   ├── AuthProvider.tsx    # 認証プロバイダー
+│   │   └── LoginForm.tsx       # ログインフォーム
+│   ├── Board.tsx            # 盤面コンポーネント
+│   ├── Piece.tsx            # 駒コンポーネント（赤色成り駒対応）
+│   ├── HandPieces.tsx       # 持ち駒表示
+│   ├── RoomList.tsx         # ルーム一覧
+│   ├── BoardEditor.tsx      # ボードエディター
+│   │                        # - 駒タイプ選択（将棋/チェス/両方）
+│   │                        # - 王/King 配置制限
+│   └── PromotionModal.tsx   # プロモーション選択 UI（2x2 グリッド）
 │
-├── src/                      # ソースコード
-│   ├── styles/              # CSSファイル
-│   │   ├── main.css         # メインスタイル
-│   │   ├── board.css        # 盤面のスタイル
-│   │   ├── pieces.css       # 駒のスタイル
-│   │   └── ui.css           # UI要素のスタイル
-│   │
-│   ├── scripts/             # JavaScriptファイル
-│   │   ├── main.js          # エントリーポイント
-│   │   ├── game.js          # ゲームメインロジック
-│   │   ├── board.js         # 盤面管理
-│   │   ├── pieces.js        # 駒の定義と動き
-│   │   ├── rules.js         # ゲームルール
-│   │   ├── ai/              # AI関連
-│   │   │   ├── ai.js        # AI制御
-│   │   │   ├── search.js    # 探索アルゴリズム
-│   │   │   └── evaluation.js # 評価関数
-│   │   ├── ui/              # UI関連
-│   │   │   ├── renderer.js  # 描画処理
-│   │   │   ├── input.js     # ユーザー入力処理
-│   │   │   └── menu.js      # メニュー管理
-│   │   └── utils/           # ユーティリティ
-│   │       ├── constants.js # 定数定義
-│   │       └── helpers.js   # ヘルパー関数
-│   │
-│   └── wasm/                # WASM関連（オプション）
-│       ├── Cargo.toml       # Rustプロジェクト設定
-│       └── src/             # Rustソースコード
-│           └── lib.rs       # WASMエクスポート
+├── lib/                     # ビジネスロジック
+│   ├── game/                # ゲームロジック
+│   │   ├── board.ts         # 盤面管理・駒名取得
+│   │   ├── legalMoves.ts    # 合法手生成
+│   │   ├── checkmate.ts     # 詰み判定
+│   │   ├── drops.ts         # 持ち駒ロジック
+│   │   └── promotion.ts     # 成り判定
+│   │                        # - 駒タイプ別プロモーションゾーン対応
+│   ├── board/               # ボード関連型定義
+│   │   ├── types.ts         # PieceTypePromotionZones など
+│   │   └── defaults.ts      # デフォルトボード設定
+│   ├── ai/                  # AI
+│   │   └── simpleAI.ts      # Minimax + Alpha-Beta Pruning
+│   ├── supabase/            # Supabase クライアント
+│   │   ├── client.ts        # Supabase クライアント初期化
+│   │   └── types.ts         # DB 型定義
+│   └── types.ts             # 共通型定義
+│                            # - GameState（promotionZones 含む）
+│                            # - Piece, Move, Player など
 │
-├── dist/                     # ビルド成果物（自動生成）
-│   └── .gitkeep
+├── hooks/                   # カスタム React フック
+│   └── useSupabaseRealtime.ts  # Realtime サブスクリプション
 │
-├── tests/                    # テストコード
-│   └── unit/
-│       └── .gitkeep
+├── styles/                  # CSS Modules
+│   ├── globals.css          # グローバルスタイル
+│   ├── board.module.css     # 盤面スタイル
+│   ├── pieces.module.css    # 駒スタイル
+│   ├── promotion.module.css # プロモーション UI（2x2 グリッド）
+│   └── hand.module.css      # 持ち駒スタイル
 │
-├── package.json             # npm設定（必要に応じて）
-├── webpack.config.js        # Webpackビルド設定（必要に応じて）
-└── .gitignore              # Git除外設定
+├── public/                  # 静的ファイル
+│   └── assets/              # アセット
+│       └── images/          # 画像
+│
+├── docs/                    # ドキュメント
+│   ├── README.md            # メインドキュメント
+│   ├── SUPABASE_SETUP.md    # Supabase セットアップガイド
+│   ├── DEPLOYMENT.md        # デプロイガイド
+│   └── WEB_STRUCTURE.md     # このファイル
+│
+├── .env.local               # 環境変数（Git 管理外）
+├── next.config.js           # Next.js 設定
+├── tsconfig.json            # TypeScript 設定
+└── package.json             # npm 設定
 ```
 
 ## 機能要件
 
-### 基本機能
+### 実装済み機能
 
-1. **盤面表示**
+#### 1. ゲームモード
 
-   - 9x9 マスの盤面を描画
-   - 将棋とチェスの駒を両方表示可能
-   - ドラッグ&ドロップによる駒の移動
+- **ローカル対戦**
 
-2. **ゲームルール**
+  - プレイヤー vs プレイヤー
+  - プレイヤー vs AI（Minimax AI）
+  - 盤タイプ選択（将棋 9x9 / チェス 8x8 / カスタム）
 
-   - 将棋ルール
-   - チェスルール
-   - ハイブリッドルール（設定可能）
-   - 持ち駒システム（将棋ルール時）
+- **オンライン対戦**
+  - リアルタイム対戦（Supabase Realtime）
+  - ルーム作成・参加
+  - 自動ルーム削除（3 時間後）
 
-3. **プレイヤーモード**
+#### 2. カスタムボードエディタ
 
-   - 人間 vs 人間
-   - 人間 vs AI
-   - AI vs AI（観戦モード）
+- **駒配置機能**
 
-4. **AI 対戦**
-   - 複数の難易度レベル
-   - 思考時間の表示
-   - 評価値の表示（オプション）
+  - ドラッグ & ドロップによる駒配置
+  - 駒タイプ選択（将棋駒のみ/チェス駒のみ/両方）
+  - 王/King 配置制限（各プレイヤー 1 つまで）
+  - 消しゴムモード
 
-### UI/UX
+- **設定機能**
 
-1. **レスポンシブデザイン**
+  - 盤サイズ選択（8x8 / 9x9）
+  - プレイヤーごとの持ち駒設定
+  - **駒タイプ別プロモーションゾーン**
+    - 将棋駒用とチェス駒用を個別に設定
+    - 行数と方向（上から/下から）を指定
+    - rows=0 でプロモーション無効化可能
 
-   - デスクトップ、タブレット、スマートフォン対応
-   - タッチ操作対応
+- **保存・共有**
+  - Supabase へのボード保存
+  - マイボード一覧表示
+  - ボードの読み込み・削除
+  - JSON エクスポート/インポート
 
-2. **視覚効果**
+#### 3. プロモーションシステム
 
-   - 移動可能マスのハイライト
-   - 駒の移動アニメーション
-   - ターン表示
-   - ゲーム終了通知
+- **統一された UI**
 
-3. **設定メニュー**
-   - ルール選択
-   - AI 難易度設定
-   - 盤面テーマ変更
-   - 音声 ON/OFF
+  - チェス駒用 `PromotionModal`（2x2 グリッド）
+  - 将棋駒用プロモーションダイアログ
 
-### 拡張機能（将来的に）
+- **成り駒の表示**
 
-- オンライン対戦
-- 棋譜の保存/読み込み
-- リプレイ機能
-- 解析モード
-- ランキング機能
+  - と金、成香、成桂、成銀、竜王、龍馬は**赤色表示**
+  - 一文字表示で盤面レイアウトを維持（成香 → 香、成桂 → 桂、成銀 → 銀）
 
-## 実装アプローチ
+- **カスタムゾーン対応**
+  - `GameState.promotionZones` でゲーム中もゾーン設定を保持
+  - 駒タイプ別のプロモーション判定
 
-### フェーズ 1: 基本実装
+#### 4. ゲームルール
 
-1. HTML ベースの盤面 UI 作成
-2. 基本的な駒の移動ロジック
-3. ルール検証システム
-4. シンプルな AI 実装
+- **将棋ルール**
 
-### フェーズ 2: WASM 統合（オプション）
+  - 伝統的な駒の動き
+  - 持ち駒システム
+  - カスタマイズ可能な成りゾーン
+  - 二歩禁止
 
-1. Rust コアロジックの選択的移植
-2. wasm-pack でのビルド設定
-3. JavaScript-WASM 間のインターフェース設計
-4. 高度な AI 機能の統合
+- **チェスルール**
+  - 国際チェスの駒の動き
+  - ポーンプロモーション
+  - キャスリング（未実装）
+  - アンパッサン（未実装）
 
-### フェーズ 3: UI/UX 改善
+#### 5. UI/UX
 
-1. レスポンシブデザインの実装
-2. アニメーションとエフェクト
-3. 音声効果
-4. テーマシステム
+- **レスポンシブデザイン**
 
-### フェーズ 4: 高度な機能
+  - CSS Grid レイアウト
+  - モバイル対応
 
-1. 棋譜システム
-2. 解析モード
-3. オンライン対戦（別途サーバー実装が必要）
+- **視覚効果**
 
-## 開発ツールとビルドプロセス
+  - 合法手ハイライト
+  - 選択中の駒表示
+  - ターン表示
+  - 勝敗通知
 
-### 開発環境
+- **認証・アカウント**
+  - Supabase Auth（Email/Password）
+  - アカウント設定ページ
+  - ログイン/ログアウト
 
-- Node.js (npm/yarn)
-- モダンブラウザ（Chrome, Firefox, Safari, Edge）
-- ローカル開発サーバー
+## データモデル
 
-### ビルドツール（必要に応じて）
+### Supabase テーブル
 
-- **Webpack** - モジュールバンドラー
-- **Babel** - トランスパイラー
-- **wasm-pack** - WASM ビルド
+#### rooms
 
-### 開発コマンド例
+オンライン対戦ルーム
+
+```sql
+- id: UUID
+- name: TEXT
+- board_type: TEXT
+- has_hand_pieces: BOOLEAN
+- player1_id: TEXT
+- player2_id: TEXT
+- status: TEXT
+- current_turn: INTEGER
+- created_at: TIMESTAMP
+- updated_at: TIMESTAMP
+```
+
+#### game_states
+
+ゲーム状態
+
+```sql
+- id: UUID
+- room_id: UUID (FK)
+- board: JSONB
+- hands: JSONB
+- status: TEXT
+- winner: INTEGER
+- created_at: TIMESTAMP
+- updated_at: TIMESTAMP
+```
+
+#### moves
+
+指し手履歴
+
+```sql
+- id: UUID
+- room_id: UUID (FK)
+- player: INTEGER
+- from_row, from_col: INTEGER
+- to_row, to_col: INTEGER
+- piece_type: TEXT
+- promoted: BOOLEAN
+- captured_piece: TEXT
+- created_at: TIMESTAMP
+```
+
+#### custom_boards
+
+カスタムボード
+
+```sql
+- id: UUID
+- user_id: TEXT
+- name: TEXT
+- board: JSONB
+- player1: JSONB
+- player2: JSONB
+- promotion_zones: JSONB  -- PieceTypePromotionZones
+- created_at: TIMESTAMP
+- updated_at: TIMESTAMP
+```
+
+## 開発ワークフロー
+
+### ローカル開発
 
 ```bash
+# 依存関係インスト���ル
+npm install
+
 # 開発サーバー起動
 npm run dev
 
-# プロダクションビルド
+# ビルド
 npm run build
 
-# WASMビルド（オプション）
-wasm-pack build --target web
+# Lint
+npm run lint
+```
+
+### 環境変数
+
+`.env.local`:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
 ## パフォーマンス目標
 
-- **初期ロード時間**: < 3 秒
-- **駒移動レスポンス**: < 100ms
-- **AI 思考時間**:
-  - 初級: < 500ms
-  - 中級: < 2 秒
-  - 上級: < 5 秒
+- **初期ロード時間**: < 2 秒（Vercel エッジ使用）
+- **駒移動レスポンス**: < 50ms
+- **AI 思考時間**: < 1 秒（Minimax depth 3）
+- **Realtime 遅延**: < 200ms
 
-## ブラウザサポート
+## セキュリティ
 
-- Chrome 90+
-- Firefox 88+
-- Safari 14+
-- Edge 90+
+- **Row Level Security (RLS)**: Supabase テーブルで有効化
+- **環境変数**: `.env.local` で管理（Git 管理外）
+- **XSS 対策**: React の自動エスケープ
+- **CORS**: Next.js でデフォルト設定
 
-## セキュリティ考慮事項
+## 今後の拡張予定
 
-- XSS 対策（ユーザー入力のサニタイズ）
-- CSP（Content Security Policy）設定
-- HTTPS 通信（本番環境）
+1. **チェスルール完全実装**
 
-## デプロイメント
+   - キャスリング
+   - アンパッサン
+   - ステイルメイト
 
-### 静的ホスティング候補
+2. **棋譜機能**
 
-- GitHub Pages
-- Netlify
-- Vercel
-- Cloudflare Pages
+   - KIF/CSA 形式対応
+   - 棋譜再生
 
-### デプロイ手順
+3. **解析モード**
 
-1. `npm run build`でビルド
-2. `dist/`ディレクトリをホスティングサービスにデプロイ
+   - 形勢グラフ
+   - 最善手提案
 
-## 今後の検討事項
-
-1. **Progressive Web App (PWA)化**
-
-   - オフライン対応
-   - インストール可能なアプリに
-
-2. **マルチプレイヤー対応**
-
-   - WebSocket 通信
-   - マッチメイキングシステム
+4. **ランキング**
+   - レーティングシステム
    - リーダーボード
-
-3. **機械学習モデルの統合**
-
-   - ONNX Runtime for Web で ML モデルを実行
-   - 既存の学習済みモデルの活用
-
-4. **国際化 (i18n)**
-   - 日本語/英語対応
-   - その他言語への拡張
-
-## 参考リンク
-
-- [WebAssembly](https://webassembly.org/)
-- [wasm-bindgen](https://rustwasm.github.io/wasm-bindgen/)
-- [wasm-pack](https://rustwasm.github.io/wasm-pack/)
-- [MDN Web Docs](https://developer.mozilla.org/)
 
 ## 変更履歴
 
 | 日付       | バージョン | 変更内容                                                               |
 | ---------- | ---------- | ---------------------------------------------------------------------- |
+| 2026-01-19 | 0.3.8      | 成り駒の赤色表示、盤面拡大問題修正                                     |
+| 2026-01-19 | 0.3.7      | 駒タイプ別プロモーションゾーン、ボードエディタ改善、王/King 配置制限   |
+| 2026-01-18 | 0.3.6      | AuthProvider の race condition 修正                                    |
 | 2026-01-18 | 0.3.4      | カスタムボード説明機能、マイボード管理ページ、アカウント設定ページ追加 |
-| 2026-01-14 | 0.1.0      | 初版作成                                                               |
+| 2026-01-14 | 0.1.0      | Next.js + Supabase 実装開始                                            |
