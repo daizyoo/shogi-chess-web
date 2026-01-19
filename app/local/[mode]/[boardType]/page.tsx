@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useEffect, useState, useRef } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createInitialBoard, getBoardSize } from '@/lib/game/board'
 import { getDropPositions, useHandPiece } from '@/lib/game/drops'
 import { isCheckmate } from '@/lib/game/checkmate'
 import { canPromoteChess, canPromoteOnMove, mustPromote } from '@/lib/game/promotion'
-import { getBestMove } from '@/lib/ai/simpleAI'
+import { createAIService, type AIService, type AIType, type AIDifficulty } from '@/lib/ai/aiService'
 import type { GameState, Position, Move, Player, BoardType, PieceType } from '@/lib/types'
 import Board from '@/components/Board'
 import HandPieces from '@/components/HandPieces'
@@ -15,6 +15,7 @@ import PromotionModal from '@/components/PromotionModal'
 export default function LocalGamePage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   if (!params) {
     return null
@@ -22,16 +23,25 @@ export default function LocalGamePage() {
 
   const mode = params.mode as string
   const boardType = (params.boardType as BoardType) || 'shogi'
+
+  // AI設定をURLパラメータから取得
+  const aiType = (searchParams?.get('aiType') as AIType) || 'simple'
+  const aiDifficulty = (searchParams?.get('aiDifficulty') as AIDifficulty) || 'medium'
+
   const [gameState, setGameState] = useState<GameState | null>(null)
   const [isAIThinking, setIsAIThinking] = useState(false)
+  const [isAILoading, setIsAILoading] = useState(false)
+  const [aiInitError, setAIInitError] = useState<string | null>(null)
   const [selectedHandPiece, setSelectedHandPiece] = useState<PieceType | null>(null)
   const [promotionDialog, setPromotionDialog] = useState<{
     from: Position
     to: Position
     piece: any
-    promotionType?: 'shogi' | 'chess' // 将棋かチェスか
-    promotionPieceType?: PieceType // チェスの場合の選択した駒
+    promotionType?: 'shogi' | 'chess'
+    promotionPieceType?: PieceType
   } | null>(null)
+
+  const aiServiceRef = useRef<AIService | null>(null)
 
   const hasHandPieces = boardType === 'shogi'
 
@@ -89,24 +99,60 @@ export default function LocalGamePage() {
     ? (p1Config.useHandPieces || p2Config.useHandPieces)
     : boardType === 'shogi'
 
+  // AI サービス初期化
+  useEffect(() => {
+    if (mode !== 'pva') return
+
+    const initAI = async () => {
+      setIsAILoading(true)
+      setAIInitError(null)
+
+      try {
+        const service = await createAIService({
+          type: aiType,
+          difficulty: aiDifficulty,
+        })
+        aiServiceRef.current = service
+      } catch (error) {
+        console.error('Failed to initialize AI:', error)
+        setAIInitError('AI初期化に失敗しました。Simple AIにフォールバックします。')
+      } finally {
+        setIsAILoading(false)
+      }
+    }
+
+    initAI()
+
+    return () => {
+      aiServiceRef.current?.dispose()
+    }
+  }, [mode, aiType, aiDifficulty])
+
   // AI の手番処理
   useEffect(() => {
     if (!gameState || gameState.status !== 'playing') return
+    if (mode !== 'pva' || gameState.currentTurn !== 2 || isAIThinking || isAILoading) return
 
-    if (mode === 'pva' && gameState.currentTurn === 2 && !isAIThinking) {
+    const makeAIMove = async () => {
       setIsAIThinking(true)
 
-      setTimeout(() => {
-        const aiMove = getBestMove(gameState.board, 2, 'medium')
+      try {
+        const aiMove = await aiServiceRef.current?.getBestMove(gameState.board, 2)
 
         if (aiMove && aiMove.from) {
-          handleMove(aiMove.from, aiMove.to)
+          // AIからの呼び出しであることを明示
+          executeMove(aiMove.from, aiMove.to, true)
         }
-
+      } catch (error) {
+        console.error('AI move failed:', error)
+      } finally {
         setIsAIThinking(false)
-      }, 500)
+      }
     }
-  }, [gameState, mode, isAIThinking])
+
+    // 少し遅延を入れて、UIの更新を確実にする
+    setTimeout(makeAIMove, 500)
+  }, [gameState, mode, isAIThinking, isAILoading])
 
   const executeMoveWithPromotion = (from: Position, to: Position, promote: boolean | PieceType) => {
     if (!gameState) return
@@ -175,11 +221,18 @@ export default function LocalGamePage() {
     setPromotionDialog(null)
   }
 
-  const handleMove = (from: Position, to: Position) => {
+  /**
+   * 実際の駒移動処理（内部関数）
+   * @param fromAI - AIからの呼び出しかどうか
+   */
+  const executeMove = (from: Position, to: Position, fromAI: boolean = false) => {
     if (!gameState) return
 
     const piece = gameState.board[from.row][from.col]
     if (!piece) return
+
+    // PvAモードでAIのターン中にプレイヤーが操作しようとした場合は拒否
+    if (!fromAI && mode === 'pva' && gameState.currentTurn === 2) return
 
     const boardSize = gameState.board.length
 
@@ -240,8 +293,23 @@ export default function LocalGamePage() {
     executeMoveWithPromotion(from, to, false)
   }
 
+  /**
+   * プレイヤーからの駒移動（UIイベントハンドラ）
+   */
+  const handleMove = (from: Position, to: Position) => {
+    if (!gameState) return
+
+    // PvAモードでAIのターン中はプレイヤーの操作を完全にブロック
+    if (mode === 'pva' && gameState.currentTurn === 2) return
+
+    executeMove(from, to, false)
+  }
+
   const handleDrop = (row: number, col: number) => {
     if (!gameState || !selectedHandPiece) return
+
+    // PvAモードでAIのターン中にプレイヤーが操作しようとした場合は拒否
+    if (mode === 'pva' && gameState.currentTurn === 2) return
 
     const newBoard = gameState.board.map((r) => [...r])
     newBoard[row][col] = {
@@ -283,6 +351,9 @@ export default function LocalGamePage() {
 
   const handleSelectHandPiece = (pieceType: PieceType) => {
     if (!gameState) return
+
+    // PvAモードでAIのターン中にプレイヤーが操作しようとした場合は拒否
+    if (mode === 'pva' && gameState.currentTurn === 2) return
     setSelectedHandPiece(selectedHandPiece === pieceType ? null : pieceType)
   }
 
@@ -302,6 +373,9 @@ export default function LocalGamePage() {
   const dropPositions = selectedHandPiece
     ? getDropPositions(gameState.board, selectedHandPiece, gameState.currentTurn)
     : []
+
+  // PvAモードでプレイヤーのターンかどうかをチェック
+  const isPlayerTurn = mode === 'pvp' || gameState.currentTurn === 1
 
   return (
     <main className="container" style={{ paddingTop: '2rem', paddingBottom: '2rem' }}>
@@ -341,7 +415,7 @@ export default function LocalGamePage() {
           <HandPieces
             hand={gameState.hands[2]}
             playerName={mode === 'pva' ? 'AI の持ち駒' : 'プレイヤー2 の持ち駒'}
-            onSelectPiece={gameState.currentTurn === 2 ? handleSelectHandPiece : undefined}
+            onSelectPiece={gameState.currentTurn === 2 && isPlayerTurn ? handleSelectHandPiece : undefined}
             selectedPiece={gameState.currentTurn === 2 ? selectedHandPiece : null}
           />
         )}
@@ -349,8 +423,8 @@ export default function LocalGamePage() {
         <Board
           board={gameState.board}
           currentPlayer={gameState.currentTurn}
-          onMove={selectedHandPiece ? undefined : handleMove}
-          onDrop={selectedHandPiece ? handleDrop : undefined}
+          onMove={!selectedHandPiece && isPlayerTurn ? handleMove : undefined}
+          onDrop={selectedHandPiece && isPlayerTurn ? handleDrop : undefined}
           dropPositions={dropPositions}
           onPromotionSelect={(from, to, pieceType) => executeMoveWithPromotion(from, to, pieceType)}
         />
@@ -359,17 +433,36 @@ export default function LocalGamePage() {
           <HandPieces
             hand={gameState.hands[1]}
             playerName="あなたの持ち駒"
-            onSelectPiece={gameState.currentTurn === 1 ? handleSelectHandPiece : undefined}
+            onSelectPiece={gameState.currentTurn === 1 && isPlayerTurn ? handleSelectHandPiece : undefined}
             selectedPiece={gameState.currentTurn === 1 ? selectedHandPiece : null}
           />
         )}
       </div>
 
       <div className="card text-center mt-lg">
-        {isAIThinking && (
+        {/* AI初期化中 */}
+        {mode === 'pva' && isAILoading && (
+          <div className="text-center mb-md" style={{ padding: 'var(--spacing-sm)', backgroundColor: '#e3f2fd', borderRadius: '8px' }}>
+            <span style={{ color: '#2196f3', fontWeight: '600' }}>
+              🔄 {aiType === 'advanced' ? 'Advanced AI (WASM)' : 'Simple AI'} を初期化中...
+            </span>
+          </div>
+        )}
+
+        {/* AIエラー */}
+        {mode === 'pva' && aiInitError && (
+          <div className="text-center mb-md" style={{ padding: 'var(--spacing-sm)', backgroundColor: '#ffebee', borderRadius: '8px' }}>
+            <span style={{ color: '#f44336', fontWeight: '600' }}>
+              ⚠️ {aiInitError}
+            </span>
+          </div>
+        )}
+
+        {/* AI思考中 */}
+        {isAIThinking && !isAILoading && (
           <div className="text-center mb-md">
             <span className="pulse" style={{ color: 'var(--color-primary)', fontWeight: '600' }}>
-              AIが考え中...
+              🤔 AIが考え中...
             </span>
           </div>
         )}

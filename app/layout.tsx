@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { AuthProvider } from '@/components/Auth/AuthProvider'
 import Navbar from '@/components/Layout/Navbar'
 import './globals.css'
+import '../styles/indicators.css'
 
 export const metadata: Metadata = {
   title: '将棋-チェス ハイブリッドゲーム',
