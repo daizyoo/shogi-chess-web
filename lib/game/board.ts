@@ -143,9 +143,9 @@ export function getPieceName(type: PieceType, promoted?: boolean): string {
   if (promoted) {
     const promotedNames: Record<string, string> = {
       pawn: 'と',
-      lance: '成香',
-      knight: '成桂',
-      silver: '成銀',
+      lance: '香',  // 成香 → 香（赤色で表示）
+      knight: '桂', // 成桂 → 桂（赤色で表示）
+      silver: '銀', // 成銀 → 銀（赤色で表示）
       rook: '竜',
       bishop: '馬',
     }
