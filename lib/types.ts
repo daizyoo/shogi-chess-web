@@ -1,3 +1,5 @@
+import type { PieceTypePromotionZones } from './board/types'
+
 // 駒の種類
 export type PieceType =
   // 将棋の駒
@@ -49,6 +51,10 @@ export interface GameState {
   moves: Move[];
   status: 'waiting' | 'playing' | 'finished';
   winner?: Player | 'draw';
+  promotionZones?: {
+    player1: PieceTypePromotionZones;
+    player2: PieceTypePromotionZones;
+  };
 }
 
 // 盤の種類

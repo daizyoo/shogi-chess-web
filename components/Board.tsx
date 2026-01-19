@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import type { BoardState, Position, Piece as PieceType, PieceType as PieceTypeName, Player } from '@/lib/types'
 import { getLegalMoves } from '@/lib/game/legalMoves'
-import { canPromoteChess } from '@/lib/game/promotion'
 import Piece from './Piece'
 import PromotionModal from './PromotionModal'
 import styles from '@/styles/board.module.css'
@@ -61,19 +60,8 @@ export default function Board({
       )
 
       if (isHighlighted && onMove) {
-        // チェックプロモーション判定
-        const movingPiece = board[selectedSquare.row][selectedSquare.col]
-        if (movingPiece && canPromoteChess(movingPiece, clickedPos, boardSize)) {
-          // プロモーションモーダルを表示
-          setPromotionState({
-            from: selectedSquare,
-            to: clickedPos,
-            player: movingPiece.player,
-          })
-        } else {
-          // 通常の移動
-          onMove(selectedSquare, clickedPos)
-        }
+        // 親コンポーネント（ゲームページ）で全てのpromotion判定を処理
+        onMove(selectedSquare, clickedPos)
         setSelectedSquare(null)
         setHighlightedSquares([])
         return
