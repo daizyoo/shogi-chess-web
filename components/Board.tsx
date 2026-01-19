@@ -78,8 +78,9 @@ export default function Board({
       // それ以外の場合（空マスや敵の駒）= 選択解除
       setSelectedSquare(null)
       setHighlightedSquares([])
-    } else if (piece && piece.player === currentPlayer) {
+    } else if (onMove && piece && piece.player === currentPlayer) {
       // 何も選択していない状態で自分の駒をクリック = 選択
+      // onMoveが有効な場合のみ選択可能
       setSelectedSquare(clickedPos)
       const moves = getLegalMoves(board, clickedPos, piece)
       setHighlightedSquares(moves)

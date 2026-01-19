@@ -297,6 +297,8 @@ export default function LocalGamePage() {
    * プレイヤーからの駒移動（UIイベントハンドラ）
    */
   const handleMove = (from: Position, to: Position) => {
+    if (!gameState) return
+
     // PvAモードでAIのターン中はプレイヤーの操作を完全にブロック
     if (mode === 'pva' && gameState.currentTurn === 2) return
 

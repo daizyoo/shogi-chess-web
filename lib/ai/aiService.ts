@@ -156,8 +156,10 @@ export class AIService {
       this.pendingResolve = null;
     } catch (error) {
       console.error('Failed to parse move:', error);
-      this.pendingResolve(null);
-      this.pendingResolve = null;
+      if (this.pendingResolve) {
+        this.pendingResolve(null);
+        this.pendingResolve = null;
+      }
     }
   }
 
