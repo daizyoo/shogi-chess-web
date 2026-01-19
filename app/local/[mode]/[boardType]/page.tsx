@@ -348,6 +348,9 @@ export default function LocalGamePage() {
     ? getDropPositions(gameState.board, selectedHandPiece, gameState.currentTurn)
     : []
 
+  // PvAモードでプレイヤーのターンかどうかをチェック
+  const isPlayerTurn = mode === 'pvp' || gameState.currentTurn === 1
+
   return (
     <main className="container" style={{ paddingTop: '2rem', paddingBottom: '2rem' }}>
       <h1
@@ -386,7 +389,7 @@ export default function LocalGamePage() {
           <HandPieces
             hand={gameState.hands[2]}
             playerName={mode === 'pva' ? 'AI の持ち駒' : 'プレイヤー2 の持ち駒'}
-            onSelectPiece={gameState.currentTurn === 2 ? handleSelectHandPiece : undefined}
+            onSelectPiece={gameState.currentTurn === 2 && isPlayerTurn ? handleSelectHandPiece : undefined}
             selectedPiece={gameState.currentTurn === 2 ? selectedHandPiece : null}
           />
         )}
@@ -394,8 +397,8 @@ export default function LocalGamePage() {
         <Board
           board={gameState.board}
           currentPlayer={gameState.currentTurn}
-          onMove={selectedHandPiece ? undefined : handleMove}
-          onDrop={selectedHandPiece ? handleDrop : undefined}
+          onMove={!selectedHandPiece && isPlayerTurn ? handleMove : undefined}
+          onDrop={selectedHandPiece && isPlayerTurn ? handleDrop : undefined}
           dropPositions={dropPositions}
           onPromotionSelect={(from, to, pieceType) => executeMoveWithPromotion(from, to, pieceType)}
         />
@@ -404,7 +407,7 @@ export default function LocalGamePage() {
           <HandPieces
             hand={gameState.hands[1]}
             playerName="あなたの持ち駒"
-            onSelectPiece={gameState.currentTurn === 1 ? handleSelectHandPiece : undefined}
+            onSelectPiece={gameState.currentTurn === 1 && isPlayerTurn ? handleSelectHandPiece : undefined}
             selectedPiece={gameState.currentTurn === 1 ? selectedHandPiece : null}
           />
         )}
