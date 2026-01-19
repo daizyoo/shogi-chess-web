@@ -32,23 +32,6 @@ export default function BoardEditor({ board, onChange }: BoardEditorProps) {
     return { p1Kings, p2Kings }
   }
 
-  // 王/Kingを配置可能かチェック
-  const canPlaceKing = (piece: PieceSymbol, currentBoard: string[]): boolean => {
-    const { p1Kings, p2Kings } = countKings(currentBoard)
-
-    // Player 1のKing/王
-    if (piece === 'K' || piece === 'CK') {
-      return p1Kings === 0
-    }
-
-    // Player 2のKing/王
-    if (piece === 'k' || piece === 'ck') {
-      return p2Kings === 0
-    }
-
-    return true
-  }
-
   const handleCellClick = (row: number, col: number) => {
     const newBoard = [...board]
     const cells = newBoard[row].split(/\s+/)
@@ -60,15 +43,27 @@ export default function BoardEditor({ board, onChange }: BoardEditorProps) {
       // 王/Kingの配置制限チェック
       if (selectedPiece === 'K' || selectedPiece === 'CK' ||
         selectedPiece === 'k' || selectedPiece === 'ck') {
-        // 既に同じマスに駒がある場合は置き換え可能なので一時的に削除
-        const boardWithoutCurrent = [...newBoard]
-        const cellsTemp = boardWithoutCurrent[row].split(/\s+/)
-        cellsTemp[col] = '.'
-        boardWithoutCurrent[row] = cellsTemp.join(' ')
 
-        if (!canPlaceKing(selectedPiece, boardWithoutCurrent)) {
-          alert('各プレイヤーは王(K)またはKing(CK)を1つのみ配置できます')
-          return
+        // 現在のマスの駒を除いたボードで既存のking数をカウント
+        const tempBoard = newBoard.map((r, i) => {
+          if (i === row) {
+            const tempCells = r.split(/\s+/)
+            tempCells[col] = '.'
+            return tempCells.join(' ')
+          }
+          return r
+        })
+
+        const { p1Kings, p2Kings } = countKings(tempBoard)
+
+        // Player 1の王/King
+        if (selectedPiece === 'K' || selectedPiece === 'CK') {
+          if (p1Kings > 0) return
+        }
+
+        // Player 2の王/King  
+        if (selectedPiece === 'k' || selectedPiece === 'ck') {
+          if (p2Kings > 0) return
         }
       }
 
