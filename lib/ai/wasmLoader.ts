@@ -55,13 +55,13 @@ export async function loadWasmAI(): Promise<WasmModule> {
     isLoading = true;
 
     // Import WASM module
-    const wasmModule = await import('../../wasm-ai/pkg/shogi_ai_wasm.js');
+    const loadedModule = await import('../../wasm-ai/pkg/shogi_ai_wasm.js');
 
     // Initialize WASM (required for proper loading)
-    await wasmModule.default();
+    await loadedModule.default();
 
     // Store the module for future use
-    wasmModule = wasmModule;
+    wasmModule = loadedModule;
     return wasmModule as any;
   } catch (error) {
     loadError = error as Error;
