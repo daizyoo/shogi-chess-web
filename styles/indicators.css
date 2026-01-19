@@ -1,0 +1,25 @@
+/* スピナーアニメーション */
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(0, 0, 0, 0.1);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* カラー変数 */
+:root {
+    --color-info: #2196f3;
+    --color-info-light: #e3f2fd;
+    --color-warning: #ff9800;
+    --color-warning-light: #fff3e0;
+    --color-error: #f44336;
+    --color-error-light: #ffebee;
+}
