@@ -7,12 +7,11 @@ let wasmModule: any = null;
 let isLoading = false;
 let loadError: Error | null = null;
 
-export interface WasmAI {
-  new(depth: number): WasmAI;
+export type WasmAI = {
   get_best_move(boardJson: string): string;
   set_depth(depth: number): void;
   get_depth(): number;
-}
+};
 
 export interface WasmModule {
   WasmAI: {
@@ -79,9 +78,9 @@ export function isWasmSupported(): boolean {
   try {
     if (typeof WebAssembly === 'object' &&
       typeof WebAssembly.instantiate === 'function') {
-      const module = new WebAssembly.Module(Uint8Array.of(0x0, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00));
-      if (module instanceof WebAssembly.Module) {
-        return new WebAssembly.Instance(module) instanceof WebAssembly.Instance;
+      const wasmTestModule = new WebAssembly.Module(Uint8Array.of(0x0, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00));
+      if (wasmTestModule instanceof WebAssembly.Module) {
+        return new WebAssembly.Instance(wasmTestModule) instanceof WebAssembly.Instance;
       }
     }
   } catch (e) {
