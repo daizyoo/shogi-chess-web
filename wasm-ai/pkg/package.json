@@ -1,0 +1,15 @@
+{
+  "name": "hybrid-board-ai-wasm",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "hybrid_board_ai_wasm_bg.wasm",
+    "hybrid_board_ai_wasm.js",
+    "hybrid_board_ai_wasm.d.ts"
+  ],
+  "main": "hybrid_board_ai_wasm.js",
+  "types": "hybrid_board_ai_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
