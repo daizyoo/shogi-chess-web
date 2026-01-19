@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import BoardEditor from '@/components/BoardEditor'
 import { useAuth } from '@/components/Auth/AuthProvider'
 import { supabase } from '@/lib/supabase/client'
-import type { CustomBoardData, PieceSymbol, PromotionZoneConfig } from '@/lib/board/types'
+import type { CustomBoardData, PieceSymbol, PromotionZoneConfig, PieceTypePromotionZones } from '@/lib/board/types'
 import {
   DEFAULT_CHESS_BOARD,
   DEFAULT_SHOGI_BOARD,
@@ -33,13 +33,13 @@ function BoardEditorContent() {
     useHandPieces: true,
   })
 
-  const [player1PromotionZone, setPlayer1PromotionZone] = useState<PromotionZoneConfig>({
-    rows: 3,
-    fromTop: true,
+  const [player1PromotionZones, setPlayer1PromotionZones] = useState<PieceTypePromotionZones>({
+    shogi: { rows: 3, fromTop: true },
+    chess: { rows: 1, fromTop: true },
   })
-  const [player2PromotionZone, setPlayer2PromotionZone] = useState<PromotionZoneConfig>({
-    rows: 3,
-    fromTop: false,
+  const [player2PromotionZones, setPlayer2PromotionZones] = useState<PieceTypePromotionZones>({
+    shogi: { rows: 3, fromTop: false },
+    chess: { rows: 1, fromTop: false },
   })
 
   // URLパラメータからボードIDを取得して既存ボードをロード
@@ -75,9 +75,32 @@ function BoardEditorContent() {
         setPlayer2Config(boardData.player2)
         setBoardSize(boardData.board[0].split(/\s+/).length as 8 | 9)
 
+        // 後方互換性を持たせてpromotionZonesを読み込み
         if (boardData.promotionZones) {
-          setPlayer1PromotionZone(boardData.promotionZones.player1)
-          setPlayer2PromotionZone(boardData.promotionZones.player2)
+          const p1Zone = boardData.promotionZones.player1
+          const p2Zone = boardData.promotionZones.player2
+
+          // 新形式（PieceTypePromotionZones）かチェック
+          if (p1Zone && 'shogi' in p1Zone && 'chess' in p1Zone) {
+            setPlayer1PromotionZones(p1Zone as PieceTypePromotionZones)
+          } else {
+            // 旧形式を新形式に変換
+            const zone = p1Zone as PromotionZoneConfig
+            setPlayer1PromotionZones({
+              shogi: zone,
+              chess: zone,  // 同じ設定を使用
+            })
+          }
+
+          if (p2Zone && 'shogi' in p2Zone && 'chess' in p2Zone) {
+            setPlayer2PromotionZones(p2Zone as PieceTypePromotionZones)
+          } else {
+            const zone = p2Zone as PromotionZoneConfig
+            setPlayer2PromotionZones({
+              shogi: zone,
+              chess: zone,
+            })
+          }
         }
       }
     } catch (error: any) {
@@ -95,19 +118,39 @@ function BoardEditorContent() {
         setBoard(DEFAULT_CHESS_BOARD)
         setPlayer1Config({ useHandPieces: false })
         setPlayer2Config({ useHandPieces: false })
-        setPlayer1PromotionZone({ rows: 1, fromTop: true })
-        setPlayer2PromotionZone({ rows: 1, fromTop: false })
+        setPlayer1PromotionZones({
+          shogi: { rows: 0, fromTop: true },      // 将棋駒は成れない
+          chess: { rows: 1, fromTop: true },      // 最終行のみ
+        })
+        setPlayer2PromotionZones({
+          shogi: { rows: 0, fromTop: false },
+          chess: { rows: 1, fromTop: false },
+        })
         break
       case 'shogi':
         setBoardSize(9)
         setBoard(DEFAULT_SHOGI_BOARD)
         setPlayer1Config({ useHandPieces: true })
         setPlayer2Config({ useHandPieces: true })
-        setPlayer1PromotionZone({ rows: 3, fromTop: true })
-        setPlayer2PromotionZone({ rows: 3, fromTop: false })
+        setPlayer1PromotionZones({
+          shogi: { rows: 3, fromTop: true },      // 敵陣3段
+          chess: { rows: 0, fromTop: true },      // チェス駒は成れない
+        })
+        setPlayer2PromotionZones({
+          shogi: { rows: 3, fromTop: false },
+          chess: { rows: 0, fromTop: false },
+        })
         break
       case 'empty':
         setBoard(boardSize === 8 ? EMPTY_8x8_BOARD : EMPTY_9x9_BOARD)
+        setPlayer1PromotionZones({
+          shogi: { rows: 3, fromTop: true },
+          chess: { rows: 1, fromTop: true },
+        })
+        setPlayer2PromotionZones({
+          shogi: { rows: 3, fromTop: false },
+          chess: { rows: 1, fromTop: false },
+        })
         break
     }
   }
@@ -120,8 +163,8 @@ function BoardEditorContent() {
       player1: player1Config,
       player2: player2Config,
       promotionZones: {
-        player1: player1PromotionZone,
-        player2: player2PromotionZone,
+        player1: player1PromotionZones,
+        player2: player2PromotionZones,
       },
     }
     const json = JSON.stringify(data, null, 2)
@@ -149,8 +192,8 @@ function BoardEditorContent() {
         player1: player1Config,
         player2: player2Config,
         promotionZones: {
-          player1: player1PromotionZone,
-          player2: player2PromotionZone,
+          player1: player1PromotionZones,
+          player2: player2PromotionZones,
         },
       }
 
@@ -220,14 +263,41 @@ function BoardEditorContent() {
         setPlayer2Config(data.player2)
         setBoardSize(data.board[0].split(/\s+/).length as 8 | 9)
 
-        // Load promotion zones with defaults for backward compatibility
+        //  Load promotion zones with defaults for backward compatibility
         if (data.promotionZones) {
-          setPlayer1PromotionZone(data.promotionZones.player1)
-          setPlayer2PromotionZone(data.promotionZones.player2)
+          const p1Zone = data.promotionZones.player1
+          const p2Zone = data.promotionZones.player2
+
+          // Check if new format
+          if (p1Zone && 'shogi' in p1Zone && 'chess' in p1Zone) {
+            setPlayer1PromotionZones(p1Zone as PieceTypePromotionZones)
+          } else {
+            const zone = p1Zone as PromotionZoneConfig
+            setPlayer1PromotionZones({
+              shogi: zone,
+              chess: zone,
+            })
+          }
+
+          if (p2Zone && 'shogi' in p2Zone && 'chess' in p2Zone) {
+            setPlayer2PromotionZones(p2Zone as PieceTypePromotionZones)
+          } else {
+            const zone = p2Zone as PromotionZoneConfig
+            setPlayer2PromotionZones({
+              shogi: zone,
+              chess: zone,
+            })
+          }
         } else {
           // Use defaults if not specified
-          setPlayer1PromotionZone({ rows: 3, fromTop: true })
-          setPlayer2PromotionZone({ rows: 3, fromTop: false })
+          setPlayer1PromotionZones({
+            shogi: { rows: 3, fromTop: true },
+            chess: { rows: 1, fromTop: true },
+          })
+          setPlayer2PromotionZones({
+            shogi: { rows: 3, fromTop: false },
+            chess: { rows: 1, fromTop: false },
+          })
         }
       } catch (error) {
         alert('Failed to import JSON file')
@@ -390,89 +460,225 @@ function BoardEditorContent() {
         gap: 'var(--spacing-md)',
         marginBottom: 'var(--spacing-lg)'
       }}>
+        {/* Player 1 Promotion Zones */}
         <div className="card">
-          <h3 style={{ marginBottom: 'var(--spacing-sm)' }}>Player 1 Promotion Zone</h3>
-          <div style={{ marginBottom: 'var(--spacing-sm)' }}>
-            <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: '14px' }}>
-              行数 (Rows):
-            </label>
-            <input
-              type="number"
-              min="1"
-              max={boardSize}
-              value={player1PromotionZone.rows}
-              onChange={(e) => setPlayer1PromotionZone({ ...player1PromotionZone, rows: parseInt(e.target.value) || 1 })}
-              className="input"
-              style={{ width: '100%' }}
-            />
+          <h3 style={{ marginBottom: 'var(--spacing-md)' }}>Player 1 Promotion Zones</h3>
+
+          {/* 将棋駒用 */}
+          <div style={{ marginBottom: 'var(--spacing-md)', paddingBottom: 'var(--spacing-md)', borderBottom: '1px solid var(--border)' }}>
+            <h4 style={{ marginBottom: 'var(--spacing-sm)', fontSize: '14px', fontWeight: '600' }}>将棋駒 (Shogi Pieces)</h4>
+            <div style={{ marginBottom: 'var(--spacing-sm)' }}>
+              <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: '14px' }}>
+                行数 (Rows):
+              </label>
+              <input
+                type="number"
+                min="0"
+                max={boardSize}
+                value={player1PromotionZones.shogi.rows}
+                onChange={(e) => setPlayer1PromotionZones({
+                  ...player1PromotionZones,
+                  shogi: { ...player1PromotionZones.shogi, rows: parseInt(e.target.value) || 0 }
+                })}
+                className="input"
+                style={{ width: '100%' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: '14px' }}>
+                方向 (Direction):
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', marginBottom: 'var(--spacing-xs)' }}>
+                <input
+                  type="radio"
+                  name="p1ShogiDirection"
+                  checked={player1PromotionZones.shogi.fromTop}
+                  onChange={() => setPlayer1PromotionZones({
+                    ...player1PromotionZones,
+                    shogi: { ...player1PromotionZones.shogi, fromTop: true }
+                  })}
+                  style={{ marginRight: 'var(--spacing-xs)' }}
+                />
+                上から (From Top)
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center' }}>
+                <input
+                  type="radio"
+                  name="p1ShogiDirection"
+                  checked={!player1PromotionZones.shogi.fromTop}
+                  onChange={() => setPlayer1PromotionZones({
+                    ...player1PromotionZones,
+                    shogi: { ...player1PromotionZones.shogi, fromTop: false }
+                  })}
+                  style={{ marginRight: 'var(--spacing-xs)' }}
+                />
+                下から (From Bottom)
+              </label>
+            </div>
           </div>
+
+          {/* チェス駒用 */}
           <div>
-            <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: '14px' }}>
-              方向 (Direction):
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', marginBottom: 'var(--spacing-xs)' }}>
+            <h4 style={{ marginBottom: 'var(--spacing-sm)', fontSize: '14px', fontWeight: '600' }}>チェス駒 (Chess Pieces)</h4>
+            <div style={{ marginBottom: 'var(--spacing-sm)' }}>
+              <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: '14px' }}>
+                行数 (Rows):
+              </label>
               <input
-                type="radio"
-                name="p1Direction"
-                checked={player1PromotionZone.fromTop}
-                onChange={() => setPlayer1PromotionZone({ ...player1PromotionZone, fromTop: true })}
-                style={{ marginRight: 'var(--spacing-xs)' }}
+                type="number"
+                min="0"
+                max={boardSize}
+                value={player1PromotionZones.chess.rows}
+                onChange={(e) => setPlayer1PromotionZones({
+                  ...player1PromotionZones,
+                  chess: { ...player1PromotionZones.chess, rows: parseInt(e.target.value) || 0 }
+                })}
+                className="input"
+                style={{ width: '100%' }}
               />
-              上から (From Top)
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center' }}>
-              <input
-                type="radio"
-                name="p1Direction"
-                checked={!player1PromotionZone.fromTop}
-                onChange={() => setPlayer1PromotionZone({ ...player1PromotionZone, fromTop: false })}
-                style={{ marginRight: 'var(--spacing-xs)' }}
-              />
-              下から (From Bottom)
-            </label>
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: '14px' }}>
+                方向 (Direction):
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', marginBottom: 'var(--spacing-xs)' }}>
+                <input
+                  type="radio"
+                  name="p1ChessDirection"
+                  checked={player1PromotionZones.chess.fromTop}
+                  onChange={() => setPlayer1PromotionZones({
+                    ...player1PromotionZones,
+                    chess: { ...player1PromotionZones.chess, fromTop: true }
+                  })}
+                  style={{ marginRight: 'var(--spacing-xs)' }}
+                />
+                上から (From Top)
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center' }}>
+                <input
+                  type="radio"
+                  name="p1ChessDirection"
+                  checked={!player1PromotionZones.chess.fromTop}
+                  onChange={() => setPlayer1PromotionZones({
+                    ...player1PromotionZones,
+                    chess: { ...player1PromotionZones.chess, fromTop: false }
+                  })}
+                  style={{ marginRight: 'var(--spacing-xs)' }}
+                />
+                下から (From Bottom)
+              </label>
+            </div>
           </div>
         </div>
 
+        {/* Player 2 Promotion Zones */}
         <div className="card">
-          <h3 style={{ marginBottom: 'var(--spacing-sm)' }}>Player 2 Promotion Zone</h3>
-          <div style={{ marginBottom: 'var(--spacing-sm)' }}>
-            <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: '14px' }}>
-              行数 (Rows):
-            </label>
-            <input
-              type="number"
-              min="1"
-              max={boardSize}
-              value={player2PromotionZone.rows}
-              onChange={(e) => setPlayer2PromotionZone({ ...player2PromotionZone, rows: parseInt(e.target.value) || 1 })}
-              className="input"
-              style={{ width: '100%' }}
-            />
+          <h3 style={{ marginBottom: 'var(--spacing-md)' }}>Player 2 Promotion Zones</h3>
+
+          {/* 将棋駒用 */}
+          <div style={{ marginBottom: 'var(--spacing-md)', paddingBottom: 'var(--spacing-md)', borderBottom: '1px solid var(--border)' }}>
+            <h4 style={{ marginBottom: 'var(--spacing-sm)', fontSize: '14px', fontWeight: '600' }}>将棋駒 (Shogi Pieces)</h4>
+            <div style={{ marginBottom: 'var(--spacing-sm)' }}>
+              <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: '14px' }}>
+                行数 (Rows):
+              </label>
+              <input
+                type="number"
+                min="0"
+                max={boardSize}
+                value={player2PromotionZones.shogi.rows}
+                onChange={(e) => setPlayer2PromotionZones({
+                  ...player2PromotionZones,
+                  shogi: { ...player2PromotionZones.shogi, rows: parseInt(e.target.value) || 0 }
+                })}
+                className="input"
+                style={{ width: '100%' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: '14px' }}>
+                方向 (Direction):
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', marginBottom: 'var(--spacing-xs)' }}>
+                <input
+                  type="radio"
+                  name="p2ShogiDirection"
+                  checked={player2PromotionZones.shogi.fromTop}
+                  onChange={() => setPlayer2PromotionZones({
+                    ...player2PromotionZones,
+                    shogi: { ...player2PromotionZones.shogi, fromTop: true }
+                  })}
+                  style={{ marginRight: 'var(--spacing-xs)' }}
+                />
+                上から (From Top)
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center' }}>
+                <input
+                  type="radio"
+                  name="p2ShogiDirection"
+                  checked={!player2PromotionZones.shogi.fromTop}
+                  onChange={() => setPlayer2PromotionZones({
+                    ...player2PromotionZones,
+                    shogi: { ...player2PromotionZones.shogi, fromTop: false }
+                  })}
+                  style={{ marginRight: 'var(--spacing-xs)' }}
+                />
+                下から (From Bottom)
+              </label>
+            </div>
           </div>
+
+          {/* チェス駒用 */}
           <div>
-            <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: '14px' }}>
-              方向 (Direction):
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', marginBottom: 'var(--spacing-xs)' }}>
+            <h4 style={{ marginBottom: 'var(--spacing-sm)', fontSize: '14px', fontWeight: '600' }}>チェス駒 (Chess Pieces)</h4>
+            <div style={{ marginBottom: 'var(--spacing-sm)' }}>
+              <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: '14px' }}>
+                行数 (Rows):
+              </label>
               <input
-                type="radio"
-                name="p2Direction"
-                checked={player2PromotionZone.fromTop}
-                onChange={() => setPlayer2PromotionZone({ ...player2PromotionZone, fromTop: true })}
-                style={{ marginRight: 'var(--spacing-xs)' }}
+                type="number"
+                min="0"
+                max={boardSize}
+                value={player2PromotionZones.chess.rows}
+                onChange={(e) => setPlayer2PromotionZones({
+                  ...player2PromotionZones,
+                  chess: { ...player2PromotionZones.chess, rows: parseInt(e.target.value) || 0 }
+                })}
+                className="input"
+                style={{ width: '100%' }}
               />
-              上から (From Top)
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center' }}>
-              <input
-                type="radio"
-                name="p2Direction"
-                checked={!player2PromotionZone.fromTop}
-                onChange={() => setPlayer2PromotionZone({ ...player2PromotionZone, fromTop: false })}
-                style={{ marginRight: 'var(--spacing-xs)' }}
-              />
-              下から (From Bottom)
-            </label>
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: '14px' }}>
+                方向 (Direction):
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', marginBottom: 'var(--spacing-xs)' }}>
+                <input
+                  type="radio"
+                  name="p2ChessDirection"
+                  checked={player2PromotionZones.chess.fromTop}
+                  onChange={() => setPlayer2PromotionZones({
+                    ...player2PromotionZones,
+                    chess: { ...player2PromotionZones.chess, fromTop: true }
+                  })}
+                  style={{ marginRight: 'var(--spacing-xs)' }}
+                />
+                上から (From Top)
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center' }}>
+                <input
+                  type="radio"
+                  name="p2ChessDirection"
+                  checked={!player2PromotionZones.chess.fromTop}
+                  onChange={() => setPlayer2PromotionZones({
+                    ...player2PromotionZones,
+                    chess: { ...player2PromotionZones.chess, fromTop: false }
+                  })}
+                  style={{ marginRight: 'var(--spacing-xs)' }}
+                />
+                下から (From Bottom)
+              </label>
+            </div>
           </div>
         </div>
       </div>

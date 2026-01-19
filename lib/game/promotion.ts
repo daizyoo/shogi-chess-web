@@ -1,4 +1,5 @@
 import type { PieceType, Player, Position } from '../types'
+import type { PromotionZoneConfig } from '../board/types'
 
 // 成れる駒かチェック
 export function canPromote(pieceType: PieceType): boolean {
@@ -7,13 +8,31 @@ export function canPromote(pieceType: PieceType): boolean {
 }
 
 // 成りゾーンにいるかチェック
-export function isInPromotionZone(position: Position, player: Player, boardSize: number = 9): boolean {
+export function isInPromotionZone(
+  position: Position,
+  player: Player,
+  promotionZone?: PromotionZoneConfig,
+  boardSize: number = 9
+): boolean {
+  // promotion zone未設定または無効な場合はデフォルト（3行）を使用
+  const zone = promotionZone || { rows: 3, fromTop: player === 1 }
+
+  if (zone.rows === 0) {
+    return false  // rows=0の場合は成れない
+  }
+
   if (player === 1) {
-    // Player 1は上3行が成りゾーン
-    return position.row <= 2
+    if (zone.fromTop) {
+      return position.row < zone.rows
+    } else {
+      return position.row >= boardSize - zone.rows
+    }
   } else {
-    // Player 2は下3行が成りゾーン
-    return position.row >= boardSize - 3
+    if (zone.fromTop) {
+      return position.row < zone.rows
+    } else {
+      return position.row >= boardSize - zone.rows
+    }
   }
 }
 
@@ -23,14 +42,15 @@ export function canPromoteOnMove(
   to: Position,
   player: Player,
   pieceType: PieceType,
+  promotionZone?: PromotionZoneConfig,
   boardSize: number = 9
 ): boolean {
   // 既に成っている駒は成れない
   if (!canPromote(pieceType)) return false
 
   // 移動元か移動先のどちらかが成りゾーンにあれば成れる
-  const fromInZone = isInPromotionZone(from, player, boardSize)
-  const toInZone = isInPromotionZone(to, player, boardSize)
+  const fromInZone = isInPromotionZone(from, player, promotionZone, boardSize)
+  const toInZone = isInPromotionZone(to, player, promotionZone, boardSize)
 
   return fromInZone || toInZone
 }
@@ -66,18 +86,33 @@ export function getPromotedPieceType(pieceType: PieceType): PieceType {
 export function canPromoteChess(
   piece: { type: PieceType; player: Player },
   to: Position,
-  boardSize: number
+  promotionZone?: PromotionZoneConfig,
+  boardSize: number = 8
 ): boolean {
   // チェスポーンのみプロモーション可能
   if (piece.type !== 'chess_pawn') return false
 
-  // プレイヤー1は最上行（row 0）に到達でプロモーション
-  if (piece.player === 1 && to.row === 0) return true
+  // promotion zone未設定または無効な場合はデフォルト（1行）を使用
+  const zone = promotionZone || { rows: 1, fromTop: piece.player === 1 }
 
-  // プレイヤー2は最下行（row boardSize-1）に到達でプロモーション
-  if (piece.player === 2 && to.row === boardSize - 1) return true
+  if (zone.rows === 0) {
+    return false  // rows=0の場合はプロモーション無効
+  }
 
-  return false
+  // promotion zoneの設定に基づいてチェック
+  if (piece.player === 1) {
+    if (zone.fromTop) {
+      return to.row < zone.rows
+    } else {
+      return to.row >= boardSize - zone.rows
+    }
+  } else {
+    if (zone.fromTop) {
+      return to.row < zone.rows
+    } else {
+      return to.row >= boardSize - zone.rows
+    }
+  }
 }
 
 // チェスプロモーションの選択肢を取得
