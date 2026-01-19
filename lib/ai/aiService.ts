@@ -92,6 +92,21 @@ export class AIService {
   }
 
   /**
+   * Normalize board state for WASM
+   * Ensures all pieces have required fields (e.g., promoted)
+   */
+  private normalizeBoard(board: BoardState): BoardState {
+    return board.map(row =>
+      row.map(piece =>
+        piece ? {
+          ...piece,
+          promoted: piece.promoted ?? false
+        } : null
+      )
+    );
+  }
+
+  /**
    * Get best move for current board state
    */
   async getBestMove(board: BoardState, player: Player): Promise<Move | null> {
@@ -102,9 +117,10 @@ export class AIService {
     return new Promise((resolve) => {
       this.pendingResolve = resolve;
 
-      // Convert board to JSON for WASM
+      // Normalize board and convert to JSON for WASM
+      const normalizedBoard = this.normalizeBoard(board);
       const boardJson = JSON.stringify({
-        board,
+        board: normalizedBoard,
         currentPlayer: player,
       });
 
