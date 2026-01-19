@@ -54,7 +54,7 @@ export class AIService {
     return new Promise((resolve, reject) => {
       try {
         this.worker = new Worker(
-          new URL('/workers/ai.worker.ts', import.meta.url),
+          new URL('../../workers/ai.worker.ts', import.meta.url),
           { type: 'module' }
         );
 

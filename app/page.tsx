@@ -29,17 +29,10 @@ export default function HomePage() {
         <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
           <button
             className="btn btn-primary"
-            onClick={() => router.push('/local/pva')}
+            onClick={() => router.push('/local')}
             style={{ flex: 1, minWidth: '200px' }}
           >
-            🤖 AI と対戦
-          </button>
-          <button
-            className="btn btn-outline"
-            onClick={() => router.push('/local/pvp')}
-            style={{ flex: 1, minWidth: '200px' }}
-          >
-            👥 2人で対戦
+            🎮 ローカルゲーム開始
           </button>
           <button
             className="btn btn-secondary"

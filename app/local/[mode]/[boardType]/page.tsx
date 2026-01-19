@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useEffect, useState, useRef } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createInitialBoard, getBoardSize } from '@/lib/game/board'
 import { getDropPositions, useHandPiece } from '@/lib/game/drops'
 import { isCheckmate } from '@/lib/game/checkmate'
 import { canPromoteChess, canPromoteOnMove, mustPromote } from '@/lib/game/promotion'
-import { getBestMove } from '@/lib/ai/simpleAI'
+import { createAIService, type AIService, type AIType, type AIDifficulty } from '@/lib/ai/aiService'
 import type { GameState, Position, Move, Player, BoardType, PieceType } from '@/lib/types'
 import Board from '@/components/Board'
 import HandPieces from '@/components/HandPieces'
@@ -15,6 +15,7 @@ import PromotionModal from '@/components/PromotionModal'
 export default function LocalGamePage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   if (!params) {
     return null
@@ -22,16 +23,25 @@ export default function LocalGamePage() {
 
   const mode = params.mode as string
   const boardType = (params.boardType as BoardType) || 'shogi'
+
+  // AI設定をURLパラメータから取得
+  const aiType = (searchParams?.get('aiType') as AIType) || 'simple'
+  const aiDifficulty = (searchParams?.get('aiDifficulty') as AIDifficulty) || 'medium'
+
   const [gameState, setGameState] = useState<GameState | null>(null)
   const [isAIThinking, setIsAIThinking] = useState(false)
+  const [isAILoading, setIsAILoading] = useState(false)
+  const [aiInitError, setAIInitError] = useState<string | null>(null)
   const [selectedHandPiece, setSelectedHandPiece] = useState<PieceType | null>(null)
   const [promotionDialog, setPromotionDialog] = useState<{
     from: Position
     to: Position
     piece: any
-    promotionType?: 'shogi' | 'chess' // 将棋かチェスか
-    promotionPieceType?: PieceType // チェスの場合の選択した駒
+    promotionType?: 'shogi' | 'chess'
+    promotionPieceType?: PieceType
   } | null>(null)
+
+  const aiServiceRef = useRef<AIService | null>(null)
 
   const hasHandPieces = boardType === 'shogi'
 
@@ -89,24 +99,59 @@ export default function LocalGamePage() {
     ? (p1Config.useHandPieces || p2Config.useHandPieces)
     : boardType === 'shogi'
 
+  // AI サービス初期化
+  useEffect(() => {
+    if (mode !== 'pva') return
+
+    const initAI = async () => {
+      setIsAILoading(true)
+      setAIInitError(null)
+
+      try {
+        const service = await createAIService({
+          type: aiType,
+          difficulty: aiDifficulty,
+        })
+        aiServiceRef.current = service
+      } catch (error) {
+        console.error('Failed to initialize AI:', error)
+        setAIInitError('AI初期化に失敗しました。Simple AIにフォールバックします。')
+      } finally {
+        setIsAILoading(false)
+      }
+    }
+
+    initAI()
+
+    return () => {
+      aiServiceRef.current?.dispose()
+    }
+  }, [mode, aiType, aiDifficulty])
+
   // AI の手番処理
   useEffect(() => {
     if (!gameState || gameState.status !== 'playing') return
+    if (mode !== 'pva' || gameState.currentTurn !== 2 || isAIThinking || isAILoading) return
 
-    if (mode === 'pva' && gameState.currentTurn === 2 && !isAIThinking) {
+    const makeAIMove = async () => {
       setIsAIThinking(true)
 
-      setTimeout(() => {
-        const aiMove = getBestMove(gameState.board, 2, 'medium')
+      try {
+        const aiMove = await aiServiceRef.current?.getBestMove(gameState.board, 2)
 
         if (aiMove && aiMove.from) {
           handleMove(aiMove.from, aiMove.to)
         }
-
+      } catch (error) {
+        console.error('AI move failed:', error)
+      } finally {
         setIsAIThinking(false)
-      }, 500)
+      }
     }
-  }, [gameState, mode, isAIThinking])
+
+    // 少し遅延を入れて、UIの更新を確実にする
+    setTimeout(makeAIMove, 500)
+  }, [gameState, mode, isAIThinking, isAILoading])
 
   const executeMoveWithPromotion = (from: Position, to: Position, promote: boolean | PieceType) => {
     if (!gameState) return
