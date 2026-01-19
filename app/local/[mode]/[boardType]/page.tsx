@@ -411,10 +411,29 @@ export default function LocalGamePage() {
       </div>
 
       <div className="card text-center mt-lg">
-        {isAIThinking && (
+        {/* AI初期化中 */}
+        {mode === 'pva' && isAILoading && (
+          <div className="text-center mb-md" style={{ padding: 'var(--spacing-sm)', backgroundColor: '#e3f2fd', borderRadius: '8px' }}>
+            <span style={{ color: '#2196f3', fontWeight: '600' }}>
+              🔄 {aiType === 'advanced' ? 'Advanced AI (WASM)' : 'Simple AI'} を初期化中...
+            </span>
+          </div>
+        )}
+
+        {/* AIエラー */}
+        {mode === 'pva' && aiInitError && (
+          <div className="text-center mb-md" style={{ padding: 'var(--spacing-sm)', backgroundColor: '#ffebee', borderRadius: '8px' }}>
+            <span style={{ color: '#f44336', fontWeight: '600' }}>
+              ⚠️ {aiInitError}
+            </span>
+          </div>
+        )}
+
+        {/* AI思考中 */}
+        {isAIThinking && !isAILoading && (
           <div className="text-center mb-md">
             <span className="pulse" style={{ color: 'var(--color-primary)', fontWeight: '600' }}>
-              AIが考え中...
+              🤔 AIが考え中...
             </span>
           </div>
         )}
