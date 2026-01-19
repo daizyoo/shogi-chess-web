@@ -18,7 +18,6 @@ export interface WasmModule {
   WasmAI: {
     new(depth: number): WasmAI;
   };
-  init(): void;
 }
 
 /**
@@ -58,8 +57,8 @@ export async function loadWasmAI(): Promise<WasmModule> {
     // @ts-ignore - WASM module
     const wasm = await import('../../wasm-ai/pkg');
 
-    // Initialize WASM
-    wasm.init();
+    // Note: WASM is automatically initialized via #[wasm_bindgen(start)]
+    // No need to call init() explicitly
 
     wasmModule = wasm;
     return wasm;
