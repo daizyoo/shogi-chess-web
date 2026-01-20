@@ -4,6 +4,7 @@
 import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import BoardSelector from '@/components/BoardSelector'
+import AILevelSelector from '@/components/AILevelSelector'
 import type { CustomBoardData } from '@/lib/board/types'
 
 export default function SelectBoardPage() {
@@ -15,6 +16,7 @@ export default function SelectBoardPage() {
   }
 
   const mode = params.mode as string
+  const [aiLevel, setAILevel] = useState<number>(3) // Default: Level 3 (Normal)
 
   const boardTypes = [
     { id: 'shogi', name: '将棋', description: '9x9 盤面、持ち駒あり' },
@@ -22,7 +24,12 @@ export default function SelectBoardPage() {
   ]
 
   const handleSelectBoard = (boardType: string) => {
-    router.push(`/local/${mode}/${boardType}`)
+    // Pass AI level for PvA mode
+    if (mode === 'pva') {
+      router.push(`/local/${mode}/${boardType}?aiLevel=${aiLevel}`)
+    } else {
+      router.push(`/local/${mode}/${boardType}`)
+    }
   }
 
   const handleCustomBoardSelect = (data: CustomBoardData) => {
@@ -42,12 +49,19 @@ export default function SelectBoardPage() {
           textAlign: 'center',
         }}
       >
-        盤の種類を選択
+        {mode === 'pva' ? 'AIの強さと盤の種類を選択' : '盤の種類を選択'}
       </h1>
 
       <p className="text-center text-muted mb-xl">
         {mode === 'pva' ? 'AI と対戦する' : '2人で対戦する'}盤の種類を選んでください
       </p>
+
+      {/* AI Level Selector for PvA mode */}
+      {mode === 'pva' && (
+        <div style={{ maxWidth: '600px', margin: '0 auto var(--spacing-2xl) auto' }}>
+          <AILevelSelector selectedLevel={aiLevel} onSelect={setAILevel} />
+        </div>
+      )}
 
       <div
         style={{

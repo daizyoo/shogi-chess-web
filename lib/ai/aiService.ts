@@ -9,11 +9,13 @@ import { isWasmSupported } from './wasmLoader';
 
 export type AIType = 'simple' | 'advanced';
 export type AIDifficulty = 'easy' | 'medium' | 'hard';
+export type AILevel = 1 | 2 | 3 | 4 | 5 | 6;
 
 interface AIServiceConfig {
   type: AIType;
-  difficulty?: AIDifficulty;
-  depth?: number; // For WASM AI
+  difficulty?: AIDifficulty;  // Legacy support
+  level?: AILevel;            // NEW: Level-based (1-6)
+  depth?: number;             // For WASM AI (optional override)
 }
 
 export class AIService {
@@ -79,11 +81,23 @@ export class AIService {
           reject(error);
         };
 
-        // Initialize worker with depth
-        const depth = this.config.depth || this.depthFromDifficulty(this.config.difficulty || 'medium');
+        // Initialize worker with level (prefer level, fallback to difficulty)
+        let level: number;
+        if (this.config.level) {
+          level = this.config.level;
+        } else if (this.config.depth) {
+          // Legacy: depth override
+          level = this.depthToLevel(this.config.depth);
+        } else if (this.config.difficulty) {
+          // Legacy: convert difficulty to level
+          level = this.difficultyToLevel(this.config.difficulty);
+        } else {
+          level = 3; // Default: Level 3 (Normal)
+        }
+
         this.worker.postMessage({
           type: 'INIT',
-          depth,
+          level,
         });
       } catch (error) {
         reject(error);
@@ -164,22 +178,58 @@ export class AIService {
   }
 
   /**
-   * Update AI difficulty
+   * Update AI level
    */
-  setDifficulty(difficulty: AIDifficulty): void {
-    this.config.difficulty = difficulty;
+  setLevel(level: AILevel): void {
+    this.config.level = level;
 
     if (this.worker && this.isReady) {
-      const depth = this.depthFromDifficulty(difficulty);
       this.worker.postMessage({
-        type: 'SET_DEPTH',
-        depth,
+        type: 'SET_LEVEL',
+        level,
       });
     }
   }
 
   /**
-   * Convert difficulty to search depth
+   * Update AI difficulty (legacy)
+   */
+  setDifficulty(difficulty: AIDifficulty): void {
+    this.config.difficulty = difficulty;
+    const level = this.difficultyToLevel(difficulty);
+    this.setLevel(level);
+  }
+
+  /**
+   * Convert difficulty to level
+   */
+  private difficultyToLevel(difficulty: AIDifficulty): AILevel {
+    switch (difficulty) {
+      case 'easy':
+        return 2;
+      case 'medium':
+        return 3;
+      case 'hard':
+        return 4;
+      default:
+        return 3;
+    }
+  }
+
+  /**
+   * Convert depth to level (approximate)
+   */
+  private depthToLevel(depth: number): AILevel {
+    if (depth <= 2) return 1;
+    if (depth === 3) return 3;
+    if (depth === 4) return 4;
+    if (depth === 5) return 5;
+    if (depth >= 6) return 6;
+    return 3;
+  }
+
+  /**
+   * Convert difficulty to search depth (legacy)
    */
   private depthFromDifficulty(difficulty: AIDifficulty): number {
     switch (difficulty) {

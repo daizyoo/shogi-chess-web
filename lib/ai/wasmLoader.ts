@@ -9,13 +9,15 @@ let loadError: Error | null = null;
 
 export type WasmAI = {
   get_best_move(boardJson: string): string;
+  set_level(level: number): void;
+  get_level(): number;
   set_depth(depth: number): void;
   get_depth(): number;
 };
 
 export interface WasmModule {
   WasmAI: {
-    new(depth: number): WasmAI;
+    new(level: number): WasmAI;
   };
 }
 

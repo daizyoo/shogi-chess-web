@@ -11,7 +11,7 @@ let wasmModule: WasmModule | null = null;
 // Message types
 interface InitMessage {
   type: 'INIT';
-  depth: number;
+  level: number;
 }
 
 interface GetMoveMessage {
@@ -19,12 +19,17 @@ interface GetMoveMessage {
   boardJson: string;
 }
 
+interface SetLevelMessage {
+  type: 'SET_LEVEL';
+  level: number;
+}
+
 interface SetDepthMessage {
   type: 'SET_DEPTH';
   depth: number;
 }
 
-type WorkerMessage = InitMessage | GetMoveMessage | SetDepthMessage;
+type WorkerMessage = InitMessage | GetMoveMessage | SetLevelMessage | SetDepthMessage;
 
 // Response types
 interface ReadyResponse {
@@ -50,11 +55,15 @@ self.onmessage = async (e: MessageEvent<WorkerMessage>) => {
   try {
     switch (type) {
       case 'INIT':
-        await handleInit(e.data.depth);
+        await handleInit(e.data.level);
         break;
 
       case 'GET_MOVE':
         await handleGetMove(e.data.boardJson);
+        break;
+
+      case 'SET_LEVEL':
+        handleSetLevel(e.data.level);
         break;
 
       case 'SET_DEPTH':
@@ -69,13 +78,13 @@ self.onmessage = async (e: MessageEvent<WorkerMessage>) => {
   }
 };
 
-async function handleInit(depth: number) {
+async function handleInit(level: number) {
   try {
     // Load WASM module
     wasmModule = await loadWasmAI();
 
-    // Create AI instance
-    wasmAI = new wasmModule.WasmAI(depth);
+    // Create AI instance with level
+    wasmAI = new wasmModule.WasmAI(level);
 
     // Notify main thread that worker is ready
     const response: ReadyResponse = { type: 'READY' };
@@ -103,6 +112,19 @@ async function handleGetMove(boardJson: string) {
     self.postMessage(response);
   } catch (error) {
     postError(`Failed to get move: ${error}`);
+  }
+}
+
+function handleSetLevel(level: number) {
+  if (!wasmAI) {
+    postError('AI not initialized. Call INIT first.');
+    return;
+  }
+
+  try {
+    wasmAI.set_level(level);
+  } catch (error) {
+    postError(`Failed to set level: ${error}`);
   }
 }
 
