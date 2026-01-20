@@ -256,6 +256,12 @@ export default function LocalGamePage() {
       })
 
       if (canPromoteChess(piece, to, chessPromotionZone, boardSize)) {
+        // AIの場合は自動的にQueenに成る
+        if (fromAI) {
+          executeMoveWithPromotion(from, to, 'chess_queen')
+          return
+        }
+        // プレイヤーの場合はダイアログ表示
         setPromotionDialog({
           from,
           to,
@@ -283,6 +289,12 @@ export default function LocalGamePage() {
 
       // 成るか選択する場合
       if (canPromoteMove && localHasHandPieces) {
+        // AIの場合は自動的に成る
+        if (fromAI) {
+          executeMoveWithPromotion(from, to, true)
+          return
+        }
+        // プレイヤーの場合はダイアログ表示
         setPromotionDialog({
           from,
           to,
