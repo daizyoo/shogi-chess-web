@@ -54,21 +54,36 @@ export class WasmAI {
         return ret;
     }
     /**
-     * Create a new AI instance with the specified search depth
-     * @param {number} depth
+     * Get current strength level
+     * @returns {number}
      */
-    constructor(depth) {
-        const ret = wasm.wasmai_new(depth);
+    get_level() {
+        const ret = wasm.wasmai_get_level(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * Create a new AI instance with the specified strength level (1-6)
+     * @param {number} level
+     */
+    constructor(level) {
+        const ret = wasm.wasmai_new(level);
         this.__wbg_ptr = ret >>> 0;
         WasmAIFinalization.register(this, this.__wbg_ptr, this);
         return this;
     }
     /**
-     * Set the search depth
+     * Set custom depth (overrides level)
      * @param {number} depth
      */
     set_depth(depth) {
         wasm.wasmai_set_depth(this.__wbg_ptr, depth);
+    }
+    /**
+     * Set the AI strength level (1-6)
+     * @param {number} level
+     */
+    set_level(level) {
+        wasm.wasmai_set_level(this.__wbg_ptr, level);
     }
 }
 if (Symbol.dispose) WasmAI.prototype[Symbol.dispose] = WasmAI.prototype.free;

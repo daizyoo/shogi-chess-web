@@ -1,9 +1,11 @@
 use crate::board::Board;
+use crate::config::AIConfig;
+use crate::pst;
 use crate::types::*;
 
 /// Simple evaluation function
 /// Returns score from current player's perspective
-pub fn evaluate(board: &Board) -> i32 {
+pub fn evaluate(board: &Board, config: &AIConfig) -> i32 {
     let mut score = 0;
 
     // Material evaluation
@@ -11,10 +13,18 @@ pub fn evaluate(board: &Board) -> i32 {
         for col in 0..board.size() {
             if let Some(piece) = board.get(Position { row, col }) {
                 let piece_value = get_piece_value(&piece.piece_type, piece.promoted);
-                if piece.player == board.current_player {
-                    score += piece_value;
+
+                // Add PST bonus if enabled
+                let pst_bonus = if config.use_pst {
+                    pst::get_pst_value(&piece.piece_type, row, col, piece.player)
                 } else {
-                    score -= piece_value;
+                    0
+                };
+
+                if piece.player == board.current_player {
+                    score += piece_value + pst_bonus;
+                } else {
+                    score -= piece_value + pst_bonus;
                 }
             }
         }

@@ -22,13 +22,21 @@ export class WasmAI {
      */
     get_depth(): number;
     /**
-     * Create a new AI instance with the specified search depth
+     * Get current strength level
      */
-    constructor(depth: number);
+    get_level(): number;
     /**
-     * Set the search depth
+     * Create a new AI instance with the specified strength level (1-6)
+     */
+    constructor(level: number);
+    /**
+     * Set custom depth (overrides level)
      */
     set_depth(depth: number): void;
+    /**
+     * Set the AI strength level (1-6)
+     */
+    set_level(level: number): void;
 }
 
 /**
@@ -43,8 +51,10 @@ export interface InitOutput {
     readonly __wbg_wasmai_free: (a: number, b: number) => void;
     readonly wasmai_get_best_move: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmai_get_depth: (a: number) => number;
+    readonly wasmai_get_level: (a: number) => number;
     readonly wasmai_new: (a: number) => number;
     readonly wasmai_set_depth: (a: number, b: number) => void;
+    readonly wasmai_set_level: (a: number, b: number) => void;
     readonly init: () => void;
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_malloc: (a: number, b: number) => number;

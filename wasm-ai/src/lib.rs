@@ -1,10 +1,14 @@
 use wasm_bindgen::prelude::*;
 
 mod board;
+mod config;
 mod eval;
 mod moves;
+mod pst;
 mod search;
+mod tt;
 mod types;
+mod zobrist;
 
 use types::*;
 
@@ -24,16 +28,16 @@ pub fn init() {
 /// WASM AI wrapper
 #[wasm_bindgen]
 pub struct WasmAI {
-    depth: u8,
+    config: config::AIConfig,
 }
 
 #[wasm_bindgen]
 impl WasmAI {
-    /// Create a new AI instance with the specified search depth
+    /// Create a new AI instance with the specified strength level (1-6)
     #[wasm_bindgen(constructor)]
-    pub fn new(depth: u8) -> Self {
+    pub fn new(level: u8) -> Self {
         Self {
-            depth: depth.max(1).min(6), // Clamp depth between 1 and 6
+            config: config::AIConfig::from_level(level),
         }
     }
 
@@ -50,22 +54,34 @@ impl WasmAI {
             .map_err(|e| JsValue::from_str(&format!("Failed to parse board: {}", e)))?;
 
         let board = board::Board::from_game_state(&game_state)?;
-        let best_move = search::find_best_move(&board, game_state.current_player, self.depth)?;
+        let best_move = search::find_best_move(&board, game_state.current_player, &self.config)?;
 
         let move_output = MoveOutput::from_move(&best_move);
         serde_json::to_string(&move_output)
             .map_err(|e| JsValue::from_str(&format!("Failed to serialize move: {}", e)))
     }
 
-    /// Set the search depth
+    /// Set the AI strength level (1-6)
+    #[wasm_bindgen]
+    pub fn set_level(&mut self, level: u8) {
+        self.config = config::AIConfig::from_level(level);
+    }
+
+    /// Get current strength level
+    #[wasm_bindgen]
+    pub fn get_level(&self) -> u8 {
+        self.config.level
+    }
+
+    /// Set custom depth (overrides level)
     #[wasm_bindgen]
     pub fn set_depth(&mut self, depth: u8) {
-        self.depth = depth.max(1).min(6);
+        self.config.max_depth = depth.max(1).min(8);
     }
 
     /// Get current search depth
     #[wasm_bindgen]
     pub fn get_depth(&self) -> u8 {
-        self.depth
+        self.config.max_depth
     }
 }
