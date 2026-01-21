@@ -20,10 +20,13 @@ pub fn find_best_move(board: &Board, player: Player, depth: u8) -> Result<Move, 
     let mut alpha = -INFINITY;
     let beta = INFINITY;
 
-    for m in moves {
+    // 修正: m を mut m にして、書き換えられるようにする
+    for mut m in moves {
         let mut new_board = board.clone();
         let captured = new_board.get(m.to).map(|p| p.piece_type);
-        new_board.make_move(&m).ok();
+        
+        // 修正: &m ではなく &mut m を渡す
+        new_board.make_move(&mut m).ok();
 
         let score = -alpha_beta(&new_board, depth - 1, -beta, -alpha, 3 - player);
 
@@ -59,11 +62,13 @@ fn alpha_beta(board: &Board, depth: u8, mut alpha: i32, beta: i32, player: Playe
 
     let mut best_score = -INFINITY;
 
-    for m in moves {
+    // 修正: m を mut m に
+    for mut m in moves {
         let mut new_board = board.clone();
         let captured = new_board.get(m.to).map(|p| p.piece_type);
 
-        if new_board.make_move(&m).is_err() {
+        // 修正: &mut m を渡す
+        if new_board.make_move(&mut m).is_err() {
             continue;
         }
 
@@ -106,11 +111,13 @@ fn quiescence(board: &Board, mut alpha: i32, beta: i32, depth: u8) -> i32 {
         .filter(|m| board.get(m.to).is_some())
         .collect();
 
-    for m in capture_moves {
+    // 修正: m を mut m に
+    for mut m in capture_moves {
         let mut new_board = board.clone();
         let captured = new_board.get(m.to).map(|p| p.piece_type);
 
-        if new_board.make_move(&m).is_err() {
+        // 修正: &mut m を渡す
+        if new_board.make_move(&mut m).is_err() {
             continue;
         }
 

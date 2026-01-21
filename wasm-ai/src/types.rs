@@ -1,6 +1,23 @@
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::JsValue;
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CastlingRights {
+    pub white_king_side: bool,
+    pub white_queen_side: bool,
+    pub black_king_side: bool,
+    pub black_queen_side: bool,
+}
 
+impl Default for CastlingRights {
+    fn default() -> Self {
+        Self {
+            white_king_side: true,
+            white_queen_side: true,
+            black_king_side: true,
+            black_queen_side: true,
+        }
+    }
+}
 /// Piece type on the board
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PieceType {
@@ -41,7 +58,7 @@ pub enum PieceType {
 pub type Player = u8;
 
 /// Piece on the board
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize,PartialEq)]
 pub struct Piece {
     #[serde(rename = "type")]
     pub piece_type: PieceType,
@@ -57,14 +74,26 @@ pub struct Position {
 }
 
 /// Move representation
-#[derive(Debug, Clone)]
-pub struct Move {
+// キャスリングの権利の定義を使うために必要なら use crate::board::CastlingRights; をファイルの先頭に追加してください
+// もし循環参照エラーになる場合は、CastlingRightsの定義を types.rs に移動する必要がありますが、
+// 一旦、Option<Box<...>> 等で逃げるか、単純に bool 4つで保存する方法もあります。
+// ここでは一番安全な「types.rs に CastlingRights を持ってくる」方法を提案します。
+
+// ★重要: さっき board.rs に書いた CastlingRights の定義を、ここ(types.rs)に移動させるのが一番エラーが出ません。
+// 手順が少し増えますが、その方が確実です。
+
+ #[derive(Clone, Copy, Debug, PartialEq)]
+ pub struct Move {
     pub from: Position,
     pub to: Position,
     pub piece_type: PieceType,
     pub promoted: bool,
-    pub promotion: bool, // Whether this move promotes the piece
+    pub promotion: bool,
     pub captured: Option<PieceType>,
+    // ↓↓ これを追加 ↓↓
+    pub is_castling: bool, 
+    // ↓↓ これを追加（Undo用。最初はNoneでOK）
+    pub old_castling_rights: Option<CastlingRights>, 
 }
 
 /// Input format from JavaScript
