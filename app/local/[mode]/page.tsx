@@ -1,8 +1,8 @@
 'use client'
 
 
-import { useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import BoardSelector from '@/components/BoardSelector'
 import AILevelSelector from '@/components/AILevelSelector'
 import type { CustomBoardData } from '@/lib/board/types'
@@ -10,13 +10,21 @@ import type { CustomBoardData } from '@/lib/board/types'
 export default function SelectBoardPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   if (!params) {
     return null
   }
 
   const mode = params.mode as string
-  const [aiLevel, setAILevel] = useState<number>(3) // Default: Level 3 (Normal)
+
+  // Read AI settings from URL parameters
+  const urlAiType = searchParams?.get('aiType') as 'simple' | 'advanced' | null
+  const urlAiLevel = searchParams?.get('aiLevel')
+
+  const [aiLevel, setAILevel] = useState<number>(
+    urlAiLevel ? parseInt(urlAiLevel) : 3
+  ) // Default: Level 3 (Normal)
 
   const boardTypes = [
     { id: 'shogi', name: '将棋', description: '9x9 盤面、持ち駒あり' },
@@ -24,9 +32,16 @@ export default function SelectBoardPage() {
   ]
 
   const handleSelectBoard = (boardType: string) => {
-    // Pass AI level for PvA mode
+    // Pass AI settings for PvA mode
     if (mode === 'pva') {
-      router.push(`/local/${mode}/${boardType}?aiLevel=${aiLevel}`)
+      const params = new URLSearchParams()
+      if (urlAiType) {
+        params.append('aiType', urlAiType)
+      }
+      if (urlAiType === 'advanced') {
+        params.append('aiLevel', aiLevel.toString())
+      }
+      router.push(`/local/${mode}/${boardType}?${params.toString()}`)
     } else {
       router.push(`/local/${mode}/${boardType}`)
     }
@@ -36,7 +51,20 @@ export default function SelectBoardPage() {
     // カスタムボードデータをURLパラメータやlocalStorage経由で渡す必要がある
     // ここでは簡単にlocalStorageを使用する
     localStorage.setItem('customBoard', JSON.stringify(data))
-    router.push(`/local/${mode}/custom`)
+
+    // Pass AI settings for PvA mode
+    if (mode === 'pva') {
+      const params = new URLSearchParams()
+      if (urlAiType) {
+        params.append('aiType', urlAiType)
+      }
+      if (urlAiType === 'advanced') {
+        params.append('aiLevel', aiLevel.toString())
+      }
+      router.push(`/local/${mode}/custom?${params.toString()}`)
+    } else {
+      router.push(`/local/${mode}/custom`)
+    }
   }
 
   return (
