@@ -12,6 +12,11 @@ pub fn evaluate(board: &Board, config: &AIConfig) -> i32 {
     for row in 0..board.size() {
         for col in 0..board.size() {
             if let Some(piece) = board.get(Position { row, col }) {
+                // Skip king evaluation (always 1 per side, doesn't affect relative score)
+                if piece.piece_type == PieceType::King || piece.piece_type == PieceType::ChessKing {
+                    continue;
+                }
+
                 let piece_value = get_piece_value(&piece.piece_type, piece.promoted);
 
                 // Add PST bonus if enabled
