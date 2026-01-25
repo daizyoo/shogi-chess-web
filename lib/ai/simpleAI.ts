@@ -1,5 +1,6 @@
 import type { BoardState, Piece, Position, Move, Player } from '../types'
-import { isValidPosition, getPossibleMoves } from '../game/board'
+import { isValidPosition } from '../game/board'
+import { getLegalMoves } from '../game/legalMoves'
 
 // 簡易評価関数 - 駒の価値を評価
 const PIECE_VALUES: Record<string, number> = {
@@ -46,7 +47,7 @@ function evaluateBoard(board: BoardState, player: Player): number {
   return score
 }
 
-// 可能な全ての手を生成（board.tsのgetPossibleMovesを使用）
+// 可能な全ての手を生成（legalMoves.tsのgetLegalMovesを使用）
 function generateMoves(board: BoardState, player: Player): Move[] {
   const moves: Move[] = []
   const boardSize = board.length
@@ -56,9 +57,10 @@ function generateMoves(board: BoardState, player: Player): Move[] {
       const piece = board[row][col]
       if (piece && piece.player === player) {
         const from: Position = { row, col }
-        const possibleMoves = getPossibleMoves(board, from, piece)
+        // 修正: getPossibleMoves → getLegalMoves に変更して王手チェックを行う
+        const legalMoves = getLegalMoves(board, from, piece)
 
-        for (const to of possibleMoves) {
+        for (const to of legalMoves) {
           const targetPiece = board[to.row][to.col]
           moves.push({
             from,
