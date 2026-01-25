@@ -6,6 +6,7 @@ use crate::tt::{Bound, TranspositionTable};
 use crate::types::*;
 use crate::zobrist;
 use wasm_bindgen::JsValue;
+use web_sys;
 
 const INFINITY: i32 = 1_000_000;
 const MATE_SCORE: i32 = 100_000;
@@ -40,6 +41,15 @@ pub fn find_best_move(board: &Board, player: Player, config: &AIConfig) -> Resul
     let mut best_move = moves[0].clone();
     let mut best_score = -INFINITY;
 
+    web_sys::console::log_1(
+        &format!(
+            "Starting search: max_depth={}, legal_moves={}",
+            config.max_depth,
+            moves.len()
+        )
+        .into(),
+    );
+
     // Iterative Deepening
     for depth in 1..=config.max_depth {
         let (score, mv) = search_root(board, player, depth, config, &mut state);
@@ -49,11 +59,24 @@ pub fn find_best_move(board: &Board, player: Player, config: &AIConfig) -> Resul
             best_score = score;
         }
 
+        web_sys::console::log_1(
+            &format!(
+                "Depth {} complete: score={}, nodes={}",
+                depth, best_score, state.nodes_searched
+            )
+            .into(),
+        );
+
         // Early exit if we found a mate
         if best_score.abs() > MATE_SCORE - 100 {
+            web_sys::console::log_1(&"Early exit: mate found".into());
             break;
         }
     }
+
+    web_sys::console::log_1(
+        &format!("Search finished: total_nodes={}", state.nodes_searched).into(),
+    );
 
     Ok(best_move)
 }

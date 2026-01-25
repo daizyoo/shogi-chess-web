@@ -112,8 +112,15 @@ function __wbg_get_imports() {
                 wasm.__wbindgen_free(deferred0_0, deferred0_1, 1);
             }
         },
+        __wbg_log_6b5ca2e6124b2808: function(arg0) {
+            console.log(arg0);
+        },
         __wbg_new_8a6f238a6ece86ea: function() {
             const ret = new Error();
+            return ret;
+        },
+        __wbg_now_a3af9a2f4bbaa4d1: function() {
+            const ret = Date.now();
             return ret;
         },
         __wbg_stack_0ed75d68575b0f3c: function(arg0, arg1) {
