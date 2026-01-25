@@ -17,6 +17,9 @@ struct SearchState {
     tt: TranspositionTable,
     killer_moves: Vec<[Option<Move>; 2]>,
     nodes_searched: usize,
+    start_time: f64,
+    timeout_ms: u32,
+    timed_out: bool,
 }
 
 impl SearchState {
@@ -25,7 +28,15 @@ impl SearchState {
             tt: TranspositionTable::new(config.tt_size_mb),
             killer_moves: vec![[None, None]; MAX_PLY],
             nodes_searched: 0,
+            start_time: js_sys::Date::now(),
+            timeout_ms: config.timeout_ms,
+            timed_out: false,
         }
+    }
+
+    fn is_timeout(&self) -> bool {
+        let elapsed = js_sys::Date::now() - self.start_time;
+        elapsed >= self.timeout_ms as f64
     }
 }
 
@@ -52,6 +63,13 @@ pub fn find_best_move(board: &Board, player: Player, config: &AIConfig) -> Resul
 
     // Iterative Deepening
     for depth in 1..=config.max_depth {
+        // Check timeout before starting new depth
+        if state.is_timeout() {
+            web_sys::console::log_1(&format!("Timeout reached at depth {}", depth).into());
+            state.timed_out = true;
+            break;
+        }
+
         let (score, mv) = search_root(board, player, depth, config, &mut state);
 
         if let Some(m) = mv {
@@ -70,6 +88,13 @@ pub fn find_best_move(board: &Board, player: Player, config: &AIConfig) -> Resul
         // Early exit if we found a mate
         if best_score.abs() > MATE_SCORE - 100 {
             web_sys::console::log_1(&"Early exit: mate found".into());
+            break;
+        }
+
+        // Check timeout after completing depth
+        if state.is_timeout() {
+            web_sys::console::log_1(&format!("Timeout after depth {}", depth).into());
+            state.timed_out = true;
             break;
         }
     }
@@ -168,6 +193,12 @@ fn alpha_beta(
     state: &mut SearchState,
 ) -> i32 {
     state.nodes_searched += 1;
+
+    // Check timeout every 1000 nodes to avoid overhead
+    if state.nodes_searched % 1000 == 0 && state.is_timeout() {
+        state.timed_out = true;
+        return 0; // Return neutral score on timeout
+    }
 
     let alpha_orig = alpha;
     let hash = zobrist::get_zobrist().hash(board);

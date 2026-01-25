@@ -8,6 +8,7 @@ pub struct AIConfig {
     pub use_pst: bool,
     pub use_killers: bool,
     pub qsearch_depth: u8,
+    pub timeout_ms: u32, // Maximum thinking time in milliseconds
 }
 
 impl AIConfig {
@@ -22,6 +23,7 @@ impl AIConfig {
                 use_pst: false,
                 use_killers: false,
                 qsearch_depth: 2,
+                timeout_ms: 5000, // 5 seconds
             },
             2 => AIConfig {
                 level: 2,
@@ -31,6 +33,7 @@ impl AIConfig {
                 use_pst: true,
                 use_killers: false,
                 qsearch_depth: 3,
+                timeout_ms: 5000, // 5 seconds
             },
             3 => AIConfig {
                 level: 3,
@@ -40,6 +43,7 @@ impl AIConfig {
                 use_pst: true,
                 use_killers: false,
                 qsearch_depth: 4,
+                timeout_ms: 10000, // 10 seconds
             },
             4 => AIConfig {
                 level: 4,
@@ -49,6 +53,7 @@ impl AIConfig {
                 use_pst: true,
                 use_killers: true,
                 qsearch_depth: 4,
+                timeout_ms: 15000, // 15 seconds
             },
             5 => AIConfig {
                 level: 5,
@@ -58,6 +63,7 @@ impl AIConfig {
                 use_pst: true,
                 use_killers: true,
                 qsearch_depth: 5,
+                timeout_ms: 20000, // 20 seconds
             },
             6 => AIConfig {
                 level: 6,
@@ -67,6 +73,7 @@ impl AIConfig {
                 use_pst: true,
                 use_killers: true,
                 qsearch_depth: 6,
+                timeout_ms: 30000, // 30 seconds
             },
             _ => AIConfig::from_level(3), // Default to level 3
         }
