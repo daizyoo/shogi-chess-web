@@ -53,7 +53,7 @@ impl AIConfig {
                 use_pst: true,
                 use_killers: true,
                 qsearch_depth: 4,
-                timeout_ms: 15000, // 15 seconds
+                timeout_ms: 50000, // 15 seconds
             },
             5 => AIConfig {
                 level: 5,
@@ -63,7 +63,7 @@ impl AIConfig {
                 use_pst: true,
                 use_killers: true,
                 qsearch_depth: 5,
-                timeout_ms: 20000, // 20 seconds
+                timeout_ms: 80000, // 20 seconds
             },
             6 => AIConfig {
                 level: 6,
@@ -73,7 +73,7 @@ impl AIConfig {
                 use_pst: true,
                 use_killers: true,
                 qsearch_depth: 6,
-                timeout_ms: 25000, // 25 seconds
+                timeout_ms: 12000, // 25 seconds
             },
             _ => AIConfig::from_level(3), // Default to level 3
         }
