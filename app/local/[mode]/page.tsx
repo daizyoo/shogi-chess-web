@@ -1,14 +1,16 @@
 'use client'
 
 
-import { useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import BoardSelector from '@/components/BoardSelector'
+import AILevelSelector from '@/components/AILevelSelector'
 import type { CustomBoardData } from '@/lib/board/types'
 
 export default function SelectBoardPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   if (!params) {
     return null
@@ -16,20 +18,53 @@ export default function SelectBoardPage() {
 
   const mode = params.mode as string
 
+  // Read AI settings from URL parameters
+  const urlAiType = searchParams?.get('aiType') as 'simple' | 'advanced' | null
+  const urlAiLevel = searchParams?.get('aiLevel')
+
+  const [aiLevel, setAILevel] = useState<number>(
+    urlAiLevel ? parseInt(urlAiLevel) : 3
+  ) // Default: Level 3 (Normal)
+
   const boardTypes = [
     { id: 'shogi', name: '将棋', description: '9x9 盤面、持ち駒あり' },
     { id: 'chess', name: 'チェス', description: '8x8 盤面、持ち駒なし' },
   ]
 
   const handleSelectBoard = (boardType: string) => {
-    router.push(`/local/${mode}/${boardType}`)
+    // Pass AI settings for PvA mode
+    if (mode === 'pva') {
+      const params = new URLSearchParams()
+      if (urlAiType) {
+        params.append('aiType', urlAiType)
+      }
+      if (urlAiType === 'advanced') {
+        params.append('aiLevel', aiLevel.toString())
+      }
+      router.push(`/local/${mode}/${boardType}?${params.toString()}`)
+    } else {
+      router.push(`/local/${mode}/${boardType}`)
+    }
   }
 
   const handleCustomBoardSelect = (data: CustomBoardData) => {
     // カスタムボードデータをURLパラメータやlocalStorage経由で渡す必要がある
     // ここでは簡単にlocalStorageを使用する
     localStorage.setItem('customBoard', JSON.stringify(data))
-    router.push(`/local/${mode}/custom`)
+
+    // Pass AI settings for PvA mode
+    if (mode === 'pva') {
+      const params = new URLSearchParams()
+      if (urlAiType) {
+        params.append('aiType', urlAiType)
+      }
+      if (urlAiType === 'advanced') {
+        params.append('aiLevel', aiLevel.toString())
+      }
+      router.push(`/local/${mode}/custom?${params.toString()}`)
+    } else {
+      router.push(`/local/${mode}/custom`)
+    }
   }
 
   return (
@@ -42,12 +77,19 @@ export default function SelectBoardPage() {
           textAlign: 'center',
         }}
       >
-        盤の種類を選択
+        {mode === 'pva' ? 'AIの強さと盤の種類を選択' : '盤の種類を選択'}
       </h1>
 
       <p className="text-center text-muted mb-xl">
         {mode === 'pva' ? 'AI と対戦する' : '2人で対戦する'}盤の種類を選んでください
       </p>
+
+      {/* AI Level Selector for PvA mode */}
+      {mode === 'pva' && (
+        <div style={{ maxWidth: '600px', margin: '0 auto var(--spacing-2xl) auto' }}>
+          <AILevelSelector selectedLevel={aiLevel} onSelect={setAILevel} />
+        </div>
+      )}
 
       <div
         style={{

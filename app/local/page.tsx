@@ -2,24 +2,13 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import type { BoardType } from '@/lib/types'
+import AILevelSelector from '@/components/AILevelSelector'
 
 export default function LocalSetupPage() {
   const router = useRouter()
   const [mode, setMode] = useState<'pvp' | 'pva'>('pva')
-  const [boardType, setBoardType] = useState<BoardType>('shogi')
-  const [aiType, setAIType] = useState<'simple' | 'advanced'>('simple')
-  const [aiDifficulty, setAIDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium')
-
-  const handleStart = () => {
-    // URLパラメータでAI設定を渡す
-    const params = new URLSearchParams({
-      aiType,
-      aiDifficulty,
-    })
-
-    router.push(`/local/${mode}/${boardType}?${params.toString()}`)
-  }
+  const [aiType, setAIType] = useState<'simple' | 'advanced'>('advanced') // Changed default to advanced
+  const [aiLevel, setAILevel] = useState<number>(3) // NEW: AI level (1-6)
 
   return (
     <main className="container" style={{ paddingTop: '2rem', paddingBottom: '2rem' }}>
@@ -56,35 +45,6 @@ export default function LocalSetupPage() {
           </div>
         </div>
 
-        {/* 盤タイプ選択 */}
-        <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-          <label style={{ display: 'block', fontWeight: '600', marginBottom: 'var(--spacing-sm)' }}>
-            盤タイプ
-          </label>
-          <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
-            <button
-              className={boardType === 'shogi' ? 'btn btn-primary' : 'btn btn-outline'}
-              onClick={() => setBoardType('shogi')}
-              style={{ flex: 1 }}
-            >
-              将棋 (9x9)
-            </button>
-            <button
-              className={boardType === 'chess' ? 'btn btn-primary' : 'btn btn-outline'}
-              onClick={() => setBoardType('chess')}
-              style={{ flex: 1 }}
-            >
-              チェス (8x8)
-            </button>
-            <button
-              className={boardType === 'custom' ? 'btn btn-primary' : 'btn btn-outline'}
-              onClick={() => setBoardType('custom')}
-              style={{ flex: 1 }}
-            >
-              カスタム
-            </button>
-          </div>
-        </div>
 
         {/* AI設定（PvAモードのみ表示） */}
         {mode === 'pva' && (
@@ -112,39 +72,17 @@ export default function LocalSetupPage() {
               <p className="text-muted mt-xs" style={{ fontSize: 'var(--font-size-sm)' }}>
                 {aiType === 'simple'
                   ? 'JavaScript実装の軽量AI。即座に応答します。'
-                  : 'Rust + WASM実装の高度なAI。より強力ですが初回読み込みに時間がかかります。'
+                  : 'Rust + WASM実装の高度なAI。6段階のレベルから選択できます。'
                 }
               </p>
             </div>
 
-            <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-              <label style={{ display: 'block', fontWeight: '600', marginBottom: 'var(--spacing-sm)' }}>
-                難易度
-              </label>
-              <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
-                <button
-                  className={aiDifficulty === 'easy' ? 'btn btn-primary' : 'btn btn-outline'}
-                  onClick={() => setAIDifficulty('easy')}
-                  style={{ flex: 1 }}
-                >
-                  😊 Easy
-                </button>
-                <button
-                  className={aiDifficulty === 'medium' ? 'btn btn-primary' : 'btn btn-outline'}
-                  onClick={() => setAIDifficulty('medium')}
-                  style={{ flex: 1 }}
-                >
-                  😐 Medium
-                </button>
-                <button
-                  className={aiDifficulty === 'hard' ? 'btn btn-primary' : 'btn btn-outline'}
-                  onClick={() => setAIDifficulty('hard')}
-                  style={{ flex: 1 }}
-                >
-                  😤 Hard
-                </button>
+            {/* AI Level Selector - Advanced AIの場合のみ表示 */}
+            {aiType === 'advanced' && (
+              <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+                <AILevelSelector selectedLevel={aiLevel} onSelect={setAILevel} />
               </div>
-            </div>
+            )}
           </>
         )}
 
@@ -159,10 +97,22 @@ export default function LocalSetupPage() {
           </button>
           <button
             className="btn btn-primary"
-            onClick={handleStart}
+            onClick={() => {
+              // Navigate to board selection page
+              const params = new URLSearchParams()
+              if (mode === 'pva') {
+                params.append('aiType', aiType)
+                if (aiType === 'advanced') {
+                  params.append('aiLevel', aiLevel.toString())
+                }
+              }
+              const queryString = params.toString()
+              const url = queryString ? `/local/${mode}?${queryString}` : `/local/${mode}`
+              router.push(url)
+            }}
             style={{ flex: 2 }}
           >
-            ゲーム開始 →
+            盤を選択 →
           </button>
         </div>
       </div>

@@ -1,6 +1,70 @@
 use crate::board::Board;
 use crate::types::*;
 
+/// Find the king position for a given player
+fn find_king(board: &Board, player: Player) -> Option<Position> {
+    for row in 0..board.size() {
+        for col in 0..board.size() {
+            if let Some(piece) = board.get(Position { row, col }) {
+                if piece.player == player
+                    && (piece.piece_type == PieceType::King
+                        || piece.piece_type == PieceType::ChessKing)
+                {
+                    return Some(Position { row, col });
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Check if a piece at `from` can attack position `to`
+fn can_attack(board: &Board, from: Position, to: Position, piece: &Piece) -> bool {
+    let mut attack_moves = Vec::new();
+    generate_piece_moves(board, from, piece, &mut attack_moves);
+    attack_moves.iter().any(|m| m.to == to)
+}
+
+/// Check if a player's king is in check
+pub fn is_in_check(board: &Board, player: Player) -> bool {
+    // Find the king position
+    let king_pos = match find_king(board, player) {
+        Some(pos) => pos,
+        None => return false, // No king found (already captured)
+    };
+
+    // Check if any opponent piece can attack the king
+    let opponent = if player == 1 { 2 } else { 1 };
+
+    for row in 0..board.size() {
+        for col in 0..board.size() {
+            if let Some(piece) = board.get(Position { row, col }) {
+                if piece.player == opponent {
+                    if can_attack(board, Position { row, col }, king_pos, piece) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    false
+}
+
+/// Check if a move is legal (doesn't put own king in check)
+fn is_legal_move(board: &Board, mv: &Move) -> bool {
+    // Apply move temporarily
+    let mut test_board = board.clone();
+    if test_board.make_move(mv).is_err() {
+        return false;
+    }
+
+    // Check if our king is in check after the move
+    // Note: current_player has switched after make_move, so we check the previous player
+    let player_after_move = 3 - test_board.current_player;
+    !is_in_check(&test_board, player_after_move)
+}
+
 /// Generate all legal moves for the current player
 pub fn generate_moves(board: &Board) -> Vec<Move> {
     let mut moves = Vec::new();
@@ -19,7 +83,11 @@ pub fn generate_moves(board: &Board) -> Vec<Move> {
     // TODO: Add drop moves for pieces in hand
     // For now, focusing on basic piece movement
 
+    // Filter out illegal moves (that would put king in check)
     moves
+        .into_iter()
+        .filter(|mv| is_legal_move(board, mv))
+        .collect()
 }
 
 fn generate_piece_moves(board: &Board, from: Position, piece: &Piece, moves: &mut Vec<Move>) {
@@ -143,6 +211,10 @@ fn generate_knight_moves(board: &Board, from: Position, piece: &Piece, moves: &m
         ]
     } else {
         // Shogi knight (moves forward only)
+        if piece.promoted {
+            generate_gold_moves(board, from, piece, moves);
+            return;
+        }
         let forward = if piece.player == 1 { -1 } else { 1 };
         vec![(forward * 2, -1), (forward * 2, 1)]
     };
@@ -157,6 +229,10 @@ fn generate_knight_moves(board: &Board, from: Position, piece: &Piece, moves: &m
 }
 
 fn generate_lance_moves(board: &Board, from: Position, piece: &Piece, moves: &mut Vec<Move>) {
+    if piece.promoted {
+        generate_gold_moves(board, from, piece, moves);
+        return;
+    }
     let forward = if piece.player == 1 { -1 } else { 1 };
     generate_sliding_moves(board, from, piece, &[(forward, 0)], moves);
 }
@@ -164,9 +240,53 @@ fn generate_lance_moves(board: &Board, from: Position, piece: &Piece, moves: &mu
 fn generate_pawn_moves(board: &Board, from: Position, piece: &Piece, moves: &mut Vec<Move>) {
     let forward = if piece.player == 1 { -1 } else { 1 };
 
-    if let Some(to) = add_delta(from, forward, 0, board.size()) {
-        if board.get(to).is_none() {
-            add_move(moves, from, to, piece, false);
+    if piece.piece_type == PieceType::Pawn {
+        // Shogi Pawn
+        if piece.promoted {
+            generate_gold_moves(board, from, piece, moves);
+            return;
+        }
+        // Move forward (can capture)
+        if let Some(to) = add_delta(from, forward, 0, board.size()) {
+            if can_move_to(board, to, piece.player) {
+                add_move(moves, from, to, piece, false);
+            }
+        }
+    } else {
+        // Chess Pawn: Forward move (only if no piece ahead)
+        if let Some(to) = add_delta(from, forward, 0, board.size()) {
+            if board.get(to).is_none() {
+                add_move(moves, from, to, piece, false);
+            }
+        }
+
+        // Chess pawn diagonal captures
+        if piece.piece_type == PieceType::ChessPawn {
+            // Diagonal captures (left and right)
+            for &dc in &[-1, 1] {
+                if let Some(to) = add_delta(from, forward, dc, board.size()) {
+                    // Can only capture enemy pieces diagonally
+                    if let Some(target_piece) = board.get(to) {
+                        if target_piece.player != piece.player {
+                            add_move(moves, from, to, piece, false);
+                        }
+                    }
+                }
+            }
+
+            // Initial two-square move for chess pawns
+            let start_row = if piece.player == 1 { 6 } else { 1 };
+            if from.row == start_row {
+                if let Some(middle) = add_delta(from, forward, 0, board.size()) {
+                    if board.get(middle).is_none() {
+                        if let Some(to) = add_delta(from, forward * 2, 0, board.size()) {
+                            if board.get(to).is_none() {
+                                add_move(moves, from, to, piece, false);
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -6,7 +6,7 @@ import { createInitialBoard, getBoardSize } from '@/lib/game/board'
 import { getDropPositions, useHandPiece } from '@/lib/game/drops'
 import { isCheckmate } from '@/lib/game/checkmate'
 import { canPromoteChess, canPromoteOnMove, mustPromote } from '@/lib/game/promotion'
-import { createAIService, type AIService, type AIType, type AIDifficulty } from '@/lib/ai/aiService'
+import { createAIService, type AIService, type AIType, type AIDifficulty, type AILevel } from '@/lib/ai/aiService'
 import type { GameState, Position, Move, Player, BoardType, PieceType } from '@/lib/types'
 import Board from '@/components/Board'
 import HandPieces from '@/components/HandPieces'
@@ -24,8 +24,11 @@ export default function LocalGamePage() {
   const mode = params.mode as string
   const boardType = (params.boardType as BoardType) || 'shogi'
 
-  // AI設定をURLパラメータから取得
-  const aiType = (searchParams?.get('aiType') as AIType) || 'simple'
+  // AI設定をURLパラメータから取得 (level優先、fallback to difficulty)
+  const aiLevel = searchParams?.get('aiLevel')
+    ? (parseInt(searchParams.get('aiLevel')!, 10) as AILevel)
+    : undefined
+  const aiType = (searchParams?.get('aiType') as AIType) || 'advanced'
   const aiDifficulty = (searchParams?.get('aiDifficulty') as AIDifficulty) || 'medium'
 
   const [gameState, setGameState] = useState<GameState | null>(null)
@@ -110,7 +113,8 @@ export default function LocalGamePage() {
       try {
         const service = await createAIService({
           type: aiType,
-          difficulty: aiDifficulty,
+          level: aiLevel, // Use level if provided
+          difficulty: aiLevel ? undefined : aiDifficulty, // Fallback
         })
         aiServiceRef.current = service
       } catch (error) {
@@ -126,7 +130,7 @@ export default function LocalGamePage() {
     return () => {
       aiServiceRef.current?.dispose()
     }
-  }, [mode, aiType, aiDifficulty])
+  }, [mode, aiType, aiLevel, aiDifficulty])
 
   // AI の手番処理
   useEffect(() => {
@@ -142,6 +146,27 @@ export default function LocalGamePage() {
         if (aiMove && aiMove.from) {
           // AIからの呼び出しであることを明示
           executeMove(aiMove.from, aiMove.to, true)
+        } else if (aiMove === null) {
+          // AI has no legal moves - check for checkmate or stalemate
+          const aiIsInCheckmate = isCheckmate(gameState.board, 2)
+
+          if (aiIsInCheckmate) {
+            // AI is checkmated - Player wins
+            console.log('AI is checkmated - Player wins!')
+            setGameState({
+              ...gameState,
+              status: 'finished',
+              winner: 1, // Player wins
+            })
+          } else {
+            // Stalemate - Draw
+            console.log('Stalemate - no legal moves but not in check')
+            setGameState({
+              ...gameState,
+              status: 'finished',
+              winner: undefined, // Draw
+            })
+          }
         }
       } catch (error) {
         console.error('AI move failed:', error)
@@ -252,6 +277,12 @@ export default function LocalGamePage() {
       })
 
       if (canPromoteChess(piece, to, chessPromotionZone, boardSize)) {
+        // AIの場合は自動的にQueenに成る
+        if (fromAI) {
+          executeMoveWithPromotion(from, to, 'chess_queen')
+          return
+        }
+        // プレイヤーの場合はダイアログ表示
         setPromotionDialog({
           from,
           to,
@@ -279,6 +310,12 @@ export default function LocalGamePage() {
 
       // 成るか選択する場合
       if (canPromoteMove && localHasHandPieces) {
+        // AIの場合は自動的に成る
+        if (fromAI) {
+          executeMoveWithPromotion(from, to, true)
+          return
+        }
+        // プレイヤーの場合はダイアログ表示
         setPromotionDialog({
           from,
           to,
@@ -377,6 +414,12 @@ export default function LocalGamePage() {
   // PvAモードでプレイヤーのターンかどうかをチェック
   const isPlayerTurn = mode === 'pvp' || gameState.currentTurn === 1
 
+  // AIレベルの名前を取得
+  const getLevelName = (level: number): string => {
+    const names = ['', '初心者', '入門', '普通', '中級', '上級', 'エキスパート']
+    return names[level] || '不明'
+  }
+
   return (
     <main className="container" style={{ paddingTop: '2rem', paddingBottom: '2rem' }}>
       <h1
@@ -387,11 +430,16 @@ export default function LocalGamePage() {
           textAlign: 'center',
         }}
       >
-        {mode === 'pva' ? 'プレイヤー vs AI' : 'プレイヤー vs プレイヤー'}
+        {mode === 'pva' ? `プレイヤー vs AI ${aiLevel ? `(Level ${aiLevel})` : ''}` : 'プレイヤー vs プレイヤー'}
       </h1>
 
       <p className="text-center text-muted mb-lg">
         {boardName} ({boardSize}x{boardSize})
+        {mode === 'pva' && aiLevel && (
+          <span style={{ marginLeft: '1rem', color: 'var(--color-primary)', fontWeight: '600' }}>
+            AI強さ: {getLevelName(aiLevel)}
+          </span>
+        )}
       </p>
 
       {selectedHandPiece && (
