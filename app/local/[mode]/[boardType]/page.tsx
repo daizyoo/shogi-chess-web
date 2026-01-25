@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createInitialBoard, getBoardSize } from '@/lib/game/board'
 import { getDropPositions, useHandPiece } from '@/lib/game/drops'
-import { isCheckmate } from '@/lib/game/checkmate'
+import { isCheckmate, isInCheck } from '@/lib/game/checkmate'
 import { canPromoteChess, canPromoteOnMove, mustPromote } from '@/lib/game/promotion'
 import { createAIService, type AIService, type AIType, type AIDifficulty, type AILevel } from '@/lib/ai/aiService'
 import type { GameState, Position, Move, Player, BoardType, PieceType } from '@/lib/types'
@@ -517,9 +517,21 @@ export default function LocalGamePage() {
             </span>
           </div>
         )}
+
+        {/* 現在のターン表示 */}
         <p style={{ fontSize: 'var(--font-size-lg)', fontWeight: '600' }}>
           現在のターン:{' '}
           {gameState.currentTurn === 1 ? 'あなた' : mode === 'pva' ? 'AI' : 'プレイヤー2'}
+          {gameState.status === 'playing' && isInCheck(gameState.board, gameState.currentTurn) && (
+            <span style={{
+              color: '#dc2626',
+              marginLeft: '1rem',
+              fontWeight: 'bold',
+              fontSize: 'var(--font-size-xl)'
+            }}>
+              ⚠️ 王手！
+            </span>
+          )}
         </p>
         <p className="text-muted mt-sm">手数: {gameState.moves.length}</p>
       </div>
