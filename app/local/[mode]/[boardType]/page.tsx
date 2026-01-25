@@ -240,6 +240,7 @@ export default function LocalGamePage() {
       status: isGameOver ? 'finished' : 'playing',
       winner: isGameOver ? gameState.currentTurn : undefined,
       promotionZones: gameState.promotionZones, // Preserve promotion zones
+      lastMove: move, // 最後の手を記録
     })
 
     setSelectedHandPiece(null)
@@ -381,6 +382,7 @@ export default function LocalGamePage() {
       moves: [...gameState.moves, move],
       status: 'playing',
       promotionZones: gameState.promotionZones, // Preserve promotion zones
+      lastMove: move, // 最後の手を記録
     })
 
     setSelectedHandPiece(null)
@@ -475,6 +477,7 @@ export default function LocalGamePage() {
           onDrop={selectedHandPiece && isPlayerTurn ? handleDrop : undefined}
           dropPositions={dropPositions}
           onPromotionSelect={(from, to, pieceType) => executeMoveWithPromotion(from, to, pieceType)}
+          lastMove={gameState.lastMove}
         />
 
         {localHasHandPieces && (

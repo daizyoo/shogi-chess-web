@@ -55,6 +55,7 @@ export interface GameState {
     player1: PieceTypePromotionZones;
     player2: PieceTypePromotionZones;
   };
+  lastMove?: Move; // 最後に指された手（ハイライト表示用）
 }
 
 // 盤の種類
