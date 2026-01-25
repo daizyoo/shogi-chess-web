@@ -69,7 +69,7 @@ impl AIConfig {
                 level: 6,
                 max_depth: 6,
                 use_tt: true,
-                tt_size_mb: 4,
+                tt_size_mb: 8,
                 use_pst: true,
                 use_killers: true,
                 qsearch_depth: 6,

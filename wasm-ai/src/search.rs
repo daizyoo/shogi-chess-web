@@ -16,6 +16,7 @@ const MAX_PLY: usize = 64;
 struct SearchState {
     tt: TranspositionTable,
     killer_moves: Vec<[Option<Move>; 2]>,
+    history: Vec<Vec<i32>>, // [from_square][to_square] -> score
     nodes_searched: usize,
     start_time: f64,
     timeout_ms: u32,
@@ -24,9 +25,13 @@ struct SearchState {
 
 impl SearchState {
     fn new(config: &AIConfig) -> Self {
+        // Initialize history table for 8x8 board (64 squares)
+        let history = vec![vec![0; 64]; 64];
+
         SearchState {
             tt: TranspositionTable::new(config.tt_size_mb),
             killer_moves: vec![[None, None]; MAX_PLY],
+            history,
             nodes_searched: 0,
             start_time: js_sys::Date::now(),
             timeout_ms: config.timeout_ms,
@@ -223,6 +228,50 @@ fn alpha_beta(
         }
     }
 
+    // Null Move Pruning (NMP)
+    // Skip if we're in check, at low depth, or in a zugzwang-prone position
+    let in_check = crate::moves::is_in_check(board, player);
+    if !in_check && depth >= 3 && ply > 0 {
+        // Static evaluation
+        let eval = evaluate(board, config);
+        let eval_player = if player == board.current_player {
+            eval
+        } else {
+            -eval
+        };
+
+        // Only try NMP if we're doing well (above beta)
+        if eval_player >= beta {
+            // Make a null move (pass turn to opponent)
+            let mut null_board = board.clone();
+            null_board.current_player = 3 - null_board.current_player;
+
+            // Reduced depth search (R = 2)
+            let reduction = 2;
+            let null_depth = if depth > reduction {
+                depth - 1 - reduction
+            } else {
+                0
+            };
+
+            let null_score = -alpha_beta(
+                &null_board,
+                null_depth,
+                -beta,
+                -beta + 1, // Null window
+                3 - player,
+                ply + 1,
+                config,
+                state,
+            );
+
+            // If null move fails high, we can prune this branch
+            if null_score >= beta {
+                return beta;
+            }
+        }
+    }
+
     // Leaf node - quiescence search
     if depth == 0 {
         return quiescence(board, alpha, beta, player, 0, config, state);
@@ -247,6 +296,7 @@ fn alpha_beta(
 
     let mut best_score = -INFINITY;
     let mut best_move = None;
+    let mut moves_searched = 0;
 
     for (_idx, m) in moves.iter().enumerate() {
         let mut new_board = board.clone();
@@ -256,18 +306,68 @@ fn alpha_beta(
             continue;
         }
 
-        let score = -alpha_beta(
-            &new_board,
-            depth - 1,
-            -beta,
-            -alpha,
-            3 - player,
-            ply + 1,
-            config,
-            state,
-        );
+        let mut score;
+        let is_capture = captured.is_some();
+        let is_promotion = m.promotion;
+
+        // Late Move Reduction (LMR)
+        // Apply LMR to moves that are likely less important
+        let apply_lmr =
+            depth >= 3 && moves_searched >= 4 && !is_capture && !is_promotion && !in_check;
+
+        if apply_lmr {
+            // Calculate reduction amount
+            let mut reduction = 1;
+            if depth > 6 {
+                reduction += 1;
+            }
+            if moves_searched > 12 {
+                reduction += 1;
+            }
+
+            // Search with reduced depth
+            let reduced_depth = depth.saturating_sub(1 + reduction);
+            score = -alpha_beta(
+                &new_board,
+                reduced_depth,
+                -alpha - 1,
+                -alpha, // Null window
+                3 - player,
+                ply + 1,
+                config,
+                state,
+            );
+
+            // If reduced search fails high, re-search at full depth
+            if score > alpha {
+                score = -alpha_beta(
+                    &new_board,
+                    depth - 1,
+                    -beta,
+                    -alpha,
+                    3 - player,
+                    ply + 1,
+                    config,
+                    state,
+                );
+            }
+        } else {
+            // Normal full-depth search
+            score = -alpha_beta(
+                &new_board,
+                depth - 1,
+                -beta,
+                -alpha,
+                3 - player,
+                ply + 1,
+                config,
+                state,
+            );
+        }
 
         new_board.unmake_move(m, captured).ok();
+
+        moves_searched += 1;
 
         if score > best_score {
             best_score = score;
@@ -277,7 +377,23 @@ fn alpha_beta(
         alpha = alpha.max(best_score);
 
         if alpha >= beta {
-            // Beta cutoff - store killer move
+            // Beta cutoff - update history and killer moves
+            let from_idx = m.from.row * 8 + m.from.col;
+            let to_idx = m.to.row * 8 + m.to.col;
+
+            // Update history heuristic (bonus based on depth squared)
+            let bonus = (depth as i32) * (depth as i32);
+            state.history[from_idx][to_idx] += bonus;
+
+            // Decay history scores to prevent overflow and favor recent history
+            if state.history[from_idx][to_idx] > 10000 {
+                for row in state.history.iter_mut() {
+                    for val in row.iter_mut() {
+                        *val /= 2;
+                    }
+                }
+            }
+
             if config.use_killers && ply < MAX_PLY {
                 let is_capture = captured.is_some();
                 if !is_capture {
@@ -416,6 +532,12 @@ fn order_moves(
         } else if Some(m) == killers[1].as_ref() {
             score -= 4000;
         }
+
+        // History heuristic - prioritize moves that have been good before
+        let from_idx = m.from.row * 8 + m.from.col;
+        let to_idx = m.to.row * 8 + m.to.col;
+        let history_score = state.history[from_idx][to_idx];
+        score -= history_score;
 
         // Promotions
         if m.promoted {
