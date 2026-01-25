@@ -73,7 +73,7 @@ impl AIConfig {
                 use_pst: true,
                 use_killers: true,
                 qsearch_depth: 6,
-                timeout_ms: 30000, // 30 seconds
+                timeout_ms: 25000, // 25 seconds
             },
             _ => AIConfig::from_level(3), // Default to level 3
         }
