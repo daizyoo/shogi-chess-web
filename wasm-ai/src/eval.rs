@@ -1,20 +1,35 @@
 use crate::board::Board;
+use crate::config::AIConfig;
+use crate::pst;
 use crate::types::*;
 
 /// Simple evaluation function
 /// Returns score from current player's perspective
-pub fn evaluate(board: &Board) -> i32 {
+pub fn evaluate(board: &Board, config: &AIConfig) -> i32 {
     let mut score = 0;
 
     // Material evaluation
     for row in 0..board.size() {
         for col in 0..board.size() {
             if let Some(piece) = board.get(Position { row, col }) {
+                // Skip king evaluation (always 1 per side, doesn't affect relative score)
+                if piece.piece_type == PieceType::King || piece.piece_type == PieceType::ChessKing {
+                    continue;
+                }
+
                 let piece_value = get_piece_value(&piece.piece_type, piece.promoted);
-                if piece.player == board.current_player {
-                    score += piece_value;
+
+                // Add PST bonus if enabled
+                let pst_bonus = if config.use_pst {
+                    pst::get_pst_value(&piece.piece_type, row, col, piece.player)
                 } else {
-                    score -= piece_value;
+                    0
+                };
+
+                if piece.player == board.current_player {
+                    score += piece_value + pst_bonus;
+                } else {
+                    score -= piece_value + pst_bonus;
                 }
             }
         }
@@ -92,6 +107,7 @@ fn get_piece_value(piece_type: &PieceType, promoted: bool) -> i32 {
 }
 
 /// Check if a position is under attack
+#[allow(dead_code)]
 pub fn is_under_attack(board: &Board, pos: Position, by_player: Player) -> bool {
     // Simplified attack detection
     // For WASM version, we use a simpler heuristic
@@ -111,7 +127,8 @@ pub fn is_under_attack(board: &Board, pos: Position, by_player: Player) -> bool 
     false
 }
 
-fn can_attack(board: &Board, from: Position, to: Position, piece: &Piece) -> bool {
+#[allow(dead_code)]
+fn can_attack(_board: &Board, from: Position, to: Position, piece: &Piece) -> bool {
     // Simplified attack detection
     let dr = (to.row as i32 - from.row as i32).abs();
     let dc = (to.col as i32 - from.col as i32).abs();

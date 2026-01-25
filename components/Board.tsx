@@ -15,6 +15,7 @@ interface BoardProps {
   dropPositions?: Position[]
   onPromotionSelect?: (from: Position, to: Position, pieceType: PieceTypeName) => void
   flipped?: boolean  // trueの場合、ボードを180度回転（Player 2用）
+  lastMove?: { from: Position | null; to: Position }  // 最後の手
 }
 
 export default function Board({
@@ -24,7 +25,8 @@ export default function Board({
   onDrop,
   dropPositions = [],
   onPromotionSelect,
-  flipped = false
+  flipped = false,
+  lastMove
 }: BoardProps) {
   const [selectedSquare, setSelectedSquare] = useState<Position | null>(null)
   const [highlightedSquares, setHighlightedSquares] = useState<Position[]>([])
@@ -95,6 +97,19 @@ export default function Board({
     return highlightedSquares.some((pos) => pos.row === row && pos.col === col)
   }
 
+  const isLastMoveSquare = (row: number, col: number) => {
+    if (!lastMove) return false
+    // 移動元（fromがnullの場合は持ち駒からの配置なのでfromはハイライトしない）
+    if (lastMove.from && lastMove.from.row === row && lastMove.from.col === col) {
+      return true
+    }
+    // 移動先
+    if (lastMove.to.row === row && lastMove.to.col === col) {
+      return true
+    }
+    return false
+  }
+
   const isSquareDroppable = (row: number, col: number) => {
     return dropPositions.some((pos) => pos.row === row && pos.col === col)
   }
@@ -139,6 +154,7 @@ export default function Board({
             const selected = isSquareSelected(actualRow, actualCol)
             const highlighted = isSquareHighlighted(actualRow, actualCol)
             const droppable = isSquareDroppable(actualRow, actualCol)
+            const isLastMove = isLastMoveSquare(actualRow, actualCol)
 
             // 敵駒がある場所かチェック
             const hasEnemyPiece = highlighted && piece && piece.player !== currentPlayer
@@ -151,7 +167,7 @@ export default function Board({
               <div
                 key={`${displayRow}-${displayCol}`}
                 className={`${styles.square} ${squareColorClass} ${selected ? styles.squareSelected : ''
-                  } ${hasEnemyPiece ? styles.squareCapture : highlighted ? styles.squareHighlight : ''} ${droppable ? styles.squareDroppable : ''
+                  } ${isLastMove ? styles.squareLastMove : ''} ${hasEnemyPiece ? styles.squareCapture : highlighted ? styles.squareHighlight : ''} ${droppable ? styles.squareDroppable : ''
                   }`}
                 onClick={() => handleSquareClick(actualRow, actualCol)}
               >

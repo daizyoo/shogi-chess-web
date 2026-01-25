@@ -57,7 +57,7 @@ pub struct Position {
 }
 
 /// Move representation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Move {
     pub from: Position,
     pub to: Position,

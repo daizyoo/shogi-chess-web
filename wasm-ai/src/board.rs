@@ -1,7 +1,7 @@
 use crate::types::*;
 use wasm_bindgen::JsValue;
 
-const BOARD_SIZE: usize = 9;
+const _BOARD_SIZE: usize = 9;
 
 /// Board representation
 #[derive(Debug, Clone)]
