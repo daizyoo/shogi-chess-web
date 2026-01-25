@@ -72,6 +72,7 @@ impl AIConfig {
         }
     }
 
+    #[allow(dead_code)]
     pub fn default() -> Self {
         Self::from_level(3)
     }

@@ -194,7 +194,7 @@ fn alpha_beta(
     let mut best_score = -INFINITY;
     let mut best_move = None;
 
-    for (idx, m) in moves.iter().enumerate() {
+    for (_idx, m) in moves.iter().enumerate() {
         let mut new_board = board.clone();
         let captured = new_board.get(m.to).map(|p| p.piece_type);
 

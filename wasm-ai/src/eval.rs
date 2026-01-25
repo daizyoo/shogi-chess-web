@@ -102,6 +102,7 @@ fn get_piece_value(piece_type: &PieceType, promoted: bool) -> i32 {
 }
 
 /// Check if a position is under attack
+#[allow(dead_code)]
 pub fn is_under_attack(board: &Board, pos: Position, by_player: Player) -> bool {
     // Simplified attack detection
     // For WASM version, we use a simpler heuristic
@@ -121,7 +122,8 @@ pub fn is_under_attack(board: &Board, pos: Position, by_player: Player) -> bool 
     false
 }
 
-fn can_attack(board: &Board, from: Position, to: Position, piece: &Piece) -> bool {
+#[allow(dead_code)]
+fn can_attack(_board: &Board, from: Position, to: Position, piece: &Piece) -> bool {
     // Simplified attack detection
     let dr = (to.row as i32 - from.row as i32).abs();
     let dc = (to.col as i32 - from.col as i32).abs();
