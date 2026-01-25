@@ -111,7 +111,21 @@ async function handleGetMove(boardJson: string) {
     };
     self.postMessage(response);
   } catch (error) {
-    postError(`Failed to get move: ${error}`);
+    // Check if this is a "no legal moves" error (checkmate/stalemate)
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    if (errorMessage.includes('No legal moves available')) {
+      // This is checkmate or stalemate - AI has no moves
+      // Return a special response indicating game over
+      const response = {
+        type: 'CHECKMATE',
+        message: 'AI has no legal moves (checkmated)',
+      };
+      self.postMessage(response);
+    } else {
+      // Other errors should still be reported as errors
+      postError(`Failed to get move: ${error}`);
+    }
   }
 }
 

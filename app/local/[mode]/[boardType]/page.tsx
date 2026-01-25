@@ -146,6 +146,27 @@ export default function LocalGamePage() {
         if (aiMove && aiMove.from) {
           // AIからの呼び出しであることを明示
           executeMove(aiMove.from, aiMove.to, true)
+        } else if (aiMove === null) {
+          // AI has no legal moves - check for checkmate or stalemate
+          const aiIsInCheckmate = isCheckmate(gameState.board, 2)
+
+          if (aiIsInCheckmate) {
+            // AI is checkmated - Player wins
+            console.log('AI is checkmated - Player wins!')
+            setGameState({
+              ...gameState,
+              status: 'finished',
+              winner: 1, // Player wins
+            })
+          } else {
+            // Stalemate - Draw
+            console.log('Stalemate - no legal moves but not in check')
+            setGameState({
+              ...gameState,
+              status: 'finished',
+              winner: undefined, // Draw
+            })
+          }
         }
       } catch (error) {
         console.error('AI move failed:', error)

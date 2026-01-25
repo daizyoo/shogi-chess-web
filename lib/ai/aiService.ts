@@ -68,10 +68,21 @@ export class AIService {
             resolve();
           } else if (type === 'MOVE') {
             this.handleMoveResponse(e.data.move);
+          } else if (type === 'CHECKMATE') {
+            // AI has no legal moves - this means the AI is checkmated
+            console.log('AI has no legal moves (checkmated)');
+            if (this.pendingResolve) {
+              this.pendingResolve(null); // Return null to indicate checkmate
+              this.pendingResolve = null;
+            }
           } else if (type === 'ERROR') {
             console.error('Worker error:', e.data.error);
             if (!this.isReady) {
               reject(new Error(e.data.error));
+            } else if (this.pendingResolve) {
+              // Resolve with null on error during move generation
+              this.pendingResolve(null);
+              this.pendingResolve = null;
             }
           }
         };
