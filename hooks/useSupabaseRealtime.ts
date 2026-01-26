@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { supabase } from '@/lib/supabase/client'
+import { getSupabaseClient } from '@/lib/supabase/client'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import type { GameState } from '@/lib/types'
 
@@ -34,6 +34,7 @@ export function useSupabaseRealtime({
   useEffect(() => {
     if (!roomId) return
 
+    const supabase = getSupabaseClient()
     // チャンネルに接続
     const roomChannel = supabase.channel(`room:${roomId}`, {
       config: {

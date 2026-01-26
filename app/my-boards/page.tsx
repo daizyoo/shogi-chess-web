@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/Auth/AuthProvider'
-import { supabase } from '@/lib/supabase/client'
+import { getSupabaseClient } from '@/lib/supabase/client'
 
 interface SavedBoard {
   id: string
@@ -33,6 +33,7 @@ export default function MyBoardsPage() {
 
     setLoading(true)
     try {
+      const supabase = getSupabaseClient()
       const { data, error } = await supabase
         .from('custom_boards')
         .select('id, name, board_data, is_public, created_at')
@@ -50,6 +51,7 @@ export default function MyBoardsPage() {
   }
 
   const handleDelete = async (id: string) => {
+    const supabase = getSupabaseClient()
     const session = await supabase.auth.getSession()
     if (!session.data.session) {
       alert('認証エラーが発生しました')
@@ -78,6 +80,7 @@ export default function MyBoardsPage() {
   }
 
   const handleTogglePublic = async (id: string, currentPublic: boolean) => {
+    const supabase = getSupabaseClient()
     const session = await supabase.auth.getSession()
     if (!session.data.session) {
       alert('認証エラーが発生しました')

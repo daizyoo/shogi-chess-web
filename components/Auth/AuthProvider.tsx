@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase/client'
+import { getSupabaseClient } from '@/lib/supabase/client'
 import type { User, Session } from '@supabase/supabase-js'
 
 interface AuthContextType {
@@ -30,6 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // セッションの取得
     const initAuth = async () => {
       try {
+        const supabase = getSupabaseClient()
         const { data: { session } } = await supabase.auth.getSession()
 
         if (!mounted) return
@@ -53,6 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initAuth()
 
     // Auth状態の監視
+    const supabase = getSupabaseClient()
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!mounted) return
 
@@ -75,6 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = async (userId: string) => {
     try {
+      const supabase = getSupabaseClient()
       const { data, error } = await supabase
         .from('profiles')
         .select('*')

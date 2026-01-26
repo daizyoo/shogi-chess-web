@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase/client'
+import { getSupabaseClient } from '@/lib/supabase/client'
 import BoardSelector from './BoardSelector'
 
 interface Room {
@@ -24,6 +24,7 @@ export default function RoomList() {
 
   const fetchRooms = async () => {
     try {
+      const supabase = getSupabaseClient()
       const { data, error } = await supabase
         .from('rooms')
         .select('*')
@@ -82,6 +83,7 @@ export default function RoomList() {
     }, 10000)
 
     // リアルタイム更新を購読
+    const supabase = getSupabaseClient()
     const channel = supabase
       .channel('rooms-list')
       .on(

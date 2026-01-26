@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import BoardEditor from '@/components/BoardEditor'
 import { useAuth } from '@/components/Auth/AuthProvider'
-import { supabase } from '@/lib/supabase/client'
+import { getSupabaseClient } from '@/lib/supabase/client'
 import type { CustomBoardData, PieceSymbol, PromotionZoneConfig, PieceTypePromotionZones } from '@/lib/board/types'
 import {
   DEFAULT_CHESS_BOARD,
@@ -43,17 +43,11 @@ function BoardEditorContent() {
     chess: { rows: 1, fromTop: false },
   })
 
-  // URLパラメータからボードIDを取得して既存ボードをロード
-  useEffect(() => {
-    const id = searchParams?.get('id')
-    if (id && user) {
-      loadExistingBoard(id)
-    }
-  }, [searchParams, user])
-
-  const loadExistingBoard = async (id: string) => {
+  // Load existing board function (defined before useEffect)
+  const loadExistingBoard = useCallback(async (id: string) => {
     setLoading(true)
     try {
+      const supabase = getSupabaseClient()
       const { data, error } = await supabase
         .from('custom_boards')
         .select('*')
@@ -121,7 +115,15 @@ function BoardEditorContent() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
+
+  // URLパラメータからボードIDを取得して既存ボードをロード
+  useEffect(() => {
+    const id = searchParams?.get('id')
+    if (id && user) {
+      loadExistingBoard(id)
+    }
+  }, [searchParams, user, loadExistingBoard])
 
   const loadTemplate = (template: 'chess' | 'shogi' | 'empty') => {
     switch (template) {
@@ -219,6 +221,7 @@ function BoardEditorContent() {
 
       if (boardId) {
         // 更新
+        const supabase = getSupabaseClient()
         const session = await supabase.auth.getSession()
         if (!session.data.session) {
           throw new Error('Authentication required')
@@ -241,6 +244,7 @@ function BoardEditorContent() {
         alert('ボードを更新しました！')
       } else {
         // 新規作成
+        const supabase = getSupabaseClient()
         const { data, error } = await (supabase
           .from('custom_boards') as any)
           .insert({

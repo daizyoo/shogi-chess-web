@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase/client'
+import { getSupabaseClient } from '@/lib/supabase/client'
 import type { CustomBoardData } from '@/lib/board/types'
 
 interface CustomBoard {
@@ -27,6 +27,7 @@ export default function BoardSelector({ onSelect, showTitle = true }: BoardSelec
   const fetchPublicBoards = async () => {
     setLoading(true)
     try {
+      const supabase = getSupabaseClient()
       const { data, error } = await supabase
         .from('custom_boards')
         .select('id, name, user_display_name, board_data')

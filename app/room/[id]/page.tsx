@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime'
-import { supabase } from '@/lib/supabase/client'
+import { getSupabaseClient } from '@/lib/supabase/client'
 import { isCheckmate } from '@/lib/game/checkmate'
 import Board from '@/components/Board'
 import HandPieces from '@/components/HandPieces'
@@ -32,6 +32,7 @@ export default function RoomPage() {
 
   const loadRoomData = useCallback(async () => {
     try {
+      const supabase = getSupabaseClient()
       // ルーム情報を取得
       const { data: room } = await supabase
         .from('rooms')
@@ -221,6 +222,7 @@ export default function RoomPage() {
     } catch (error) {
       console.error('Error making move:', error)
       // ルームが削除された可能性をチェック
+      const supabase = getSupabaseClient()
       const { data: room } = await supabase
         .from('rooms')
         .select('id')
