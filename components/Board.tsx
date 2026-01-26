@@ -16,6 +16,7 @@ interface BoardProps {
   onPromotionSelect?: (from: Position, to: Position, pieceType: PieceTypeName) => void
   flipped?: boolean  // trueの場合、ボードを180度回転（Player 2用）
   lastMove?: { from: Position | null; to: Position }  // 最後の手
+  initialBoard?: BoardState  // 初期盤面（ポーンの2マス移動判定用）
 }
 
 export default function Board({
@@ -26,7 +27,8 @@ export default function Board({
   dropPositions = [],
   onPromotionSelect,
   flipped = false,
-  lastMove
+  lastMove,
+  initialBoard
 }: BoardProps) {
   const [selectedSquare, setSelectedSquare] = useState<Position | null>(null)
   const [highlightedSquares, setHighlightedSquares] = useState<Position[]>([])
@@ -72,7 +74,7 @@ export default function Board({
       // 自分の別の駒をクリックした場合 = 選択変更
       if (piece && piece.player === currentPlayer) {
         setSelectedSquare(clickedPos)
-        const moves = getLegalMoves(board, clickedPos, piece)
+        const moves = getLegalMoves(board, clickedPos, piece, initialBoard)
         setHighlightedSquares(moves)
         return
       }
@@ -84,7 +86,7 @@ export default function Board({
       // 何も選択していない状態で自分の駒をクリック = 選択
       // onMoveが有効な場合のみ選択可能
       setSelectedSquare(clickedPos)
-      const moves = getLegalMoves(board, clickedPos, piece)
+      const moves = getLegalMoves(board, clickedPos, piece, initialBoard)
       setHighlightedSquares(moves)
     }
   }

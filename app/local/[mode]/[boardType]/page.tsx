@@ -56,6 +56,24 @@ export default function LocalGamePage() {
         try {
           const customData = JSON.parse(saved)
           const initialBoard = createInitialBoard('custom', customData)
+
+          // pawnInitialPositionsを使ってinitialBoardを構築
+          // 空のボードを作成し、マークされたポーンのみを配置
+          const boardSize = initialBoard.length
+          const adjustedInitialBoard = Array(boardSize)
+            .fill(null)
+            .map(() => Array(boardSize).fill(null))
+
+          // マークされたチェスポーンのみをinitialBoardに配置
+          if (customData.pawnInitialPositions) {
+            customData.pawnInitialPositions.forEach((pos: { row: number; col: number }) => {
+              const piece = initialBoard[pos.row]?.[pos.col]
+              if (piece && piece.type === 'chess_pawn') {
+                adjustedInitialBoard[pos.row][pos.col] = { ...piece }
+              }
+            })
+          }
+
           setGameState({
             board: initialBoard,
             hands: { 1: {}, 2: {} },
@@ -63,6 +81,7 @@ export default function LocalGamePage() {
             moves: [],
             status: 'playing',
             promotionZones: customData.promotionZones, // カスタムpromotion zones設定を追加
+            initialBoard: adjustedInitialBoard, // 調整済みのinitialBoard
           })
 
           // カスタムボードの設定を反映
@@ -82,6 +101,7 @@ export default function LocalGamePage() {
       currentTurn: 1,
       moves: [],
       status: 'playing',
+      initialBoard: initialBoard.map(row => row.map(cell => cell ? { ...cell } : null)), // 初期盤面のディープコピー
     })
   }, [boardType])
 
@@ -141,7 +161,7 @@ export default function LocalGamePage() {
       setIsAIThinking(true)
 
       try {
-        const aiMove = await aiServiceRef.current?.getBestMove(gameState.board, 2)
+        const aiMove = await aiServiceRef.current?.getBestMove(gameState.board, 2, gameState.initialBoard)
 
         if (aiMove && aiMove.from) {
           // AIからの呼び出しであることを明示
@@ -240,6 +260,7 @@ export default function LocalGamePage() {
       status: isGameOver ? 'finished' : 'playing',
       winner: isGameOver ? gameState.currentTurn : undefined,
       promotionZones: gameState.promotionZones, // Preserve promotion zones
+      initialBoard: gameState.initialBoard, // Preserve initialBoard
       lastMove: move, // 最後の手を記録
     })
 
@@ -382,6 +403,7 @@ export default function LocalGamePage() {
       moves: [...gameState.moves, move],
       status: 'playing',
       promotionZones: gameState.promotionZones, // Preserve promotion zones
+      initialBoard: gameState.initialBoard, // Preserve initialBoard
       lastMove: move, // 最後の手を記録
     })
 
@@ -478,6 +500,7 @@ export default function LocalGamePage() {
           dropPositions={dropPositions}
           onPromotionSelect={(from, to, pieceType) => executeMoveWithPromotion(from, to, pieceType)}
           lastMove={gameState.lastMove}
+          initialBoard={gameState.initialBoard}
         />
 
         {localHasHandPieces && (

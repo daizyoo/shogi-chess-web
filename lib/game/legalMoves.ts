@@ -9,10 +9,11 @@ import { isInCheck } from './checkmate'
 export function getLegalMoves(
   board: BoardState,
   from: Position,
-  piece: Piece
+  piece: Piece,
+  initialBoard?: BoardState
 ): Position[] {
   // まず全ての可能な手を取得
-  const possibleMoves = getPossibleMoves(board, from, piece)
+  const possibleMoves = getPossibleMoves(board, from, piece, initialBoard)
 
   // 各手について、その手が自分の王を危険にさらさないかチェック
   const legalMoves = possibleMoves.filter(to => {

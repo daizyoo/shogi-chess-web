@@ -9,6 +9,7 @@ export interface CustomBoardData {
     player1: PromotionZoneConfig | PieceTypePromotionZones  // Single or piece-type-specific
     player2: PromotionZoneConfig | PieceTypePromotionZones
   }
+  pawnInitialPositions?: { row: number; col: number }[]  // Chess pawns that can move 2 squares initially
 }
 
 export interface PlayerConfig {
