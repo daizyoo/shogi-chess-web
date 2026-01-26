@@ -134,9 +134,9 @@ export class AIService {
   /**
    * Get best move for current board state
    */
-  async getBestMove(board: BoardState, player: Player): Promise<Move | null> {
+  async getBestMove(board: BoardState, player: Player, initialBoard?: BoardState): Promise<Move | null> {
     if (this.config.type === 'simple' || !this.worker) {
-      return getSimpleBestMove(board, player, this.config.difficulty || 'medium');
+      return getSimpleBestMove(board, player, this.config.difficulty || 'medium', initialBoard);
     }
 
     return new Promise((resolve) => {

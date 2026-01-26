@@ -183,7 +183,8 @@ export function isValidPosition(pos: Position, boardSize: number = 9): boolean {
 export function getPossibleMoves(
   board: BoardState,
   pos: Position,
-  piece: Piece
+  piece: Piece,
+  initialBoard?: BoardState
 ): Position[] {
   const moves: Position[] = []
   const boardSize = board.length
@@ -313,8 +314,21 @@ export function getPossibleMoves(
 
     case 'chess_pawn': // チェスのポーン
       // 前方1マス（まだ動いていない場合は2マス）
-      const startRow = player === 1 ? 6 : 1
       const newRow = pos.row + direction
+
+      // 初期位置判定: initialBoardがあればそれを使用、なければデフォルト
+      let isAtStartingPosition = false
+      if (initialBoard) {
+        // カスタムボード: 初期位置と現在位置が一致するかチェック
+        const initialPiece = initialBoard[pos.row]?.[pos.col]
+        isAtStartingPosition =
+          initialPiece?.type === 'chess_pawn' &&
+          initialPiece?.player === player
+      } else {
+        // 通常ボード: 固定行数
+        const startRow = player === 1 ? 6 : 1
+        isAtStartingPosition = pos.row === startRow
+      }
 
       // 前方1マス（駒がない場合のみ）
       if (isValidPosition({ row: newRow, col: pos.col }, boardSize)) {
@@ -325,7 +339,7 @@ export function getPossibleMoves(
       }
 
       // 初期位置から2マス
-      if (pos.row === startRow) {
+      if (isAtStartingPosition) {
         const twoRow = pos.row + direction * 2
         if (isValidPosition({ row: twoRow, col: pos.col }, boardSize)) {
           const middle = board[pos.row + direction][pos.col]

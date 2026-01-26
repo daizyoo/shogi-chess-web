@@ -48,7 +48,7 @@ function evaluateBoard(board: BoardState, player: Player): number {
 }
 
 // 可能な全ての手を生成（legalMoves.tsのgetLegalMovesを使用）
-function generateMoves(board: BoardState, player: Player): Move[] {
+function generateMoves(board: BoardState, player: Player, initialBoard?: BoardState): Move[] {
   const moves: Move[] = []
   const boardSize = board.length
 
@@ -58,7 +58,7 @@ function generateMoves(board: BoardState, player: Player): Move[] {
       if (piece && piece.player === player) {
         const from: Position = { row, col }
         // 修正: getPossibleMoves → getLegalMoves に変更して王手チェックを行う
-        const legalMoves = getLegalMoves(board, from, piece)
+        const legalMoves = getLegalMoves(board, from, piece, initialBoard)
 
         for (const to of legalMoves) {
           const targetPiece = board[to.row][to.col]
@@ -95,14 +95,15 @@ function minimax(
   maximizingPlayer: boolean,
   player: Player,
   alpha: number = -Infinity,
-  beta: number = Infinity
+  beta: number = Infinity,
+  initialBoard?: BoardState
 ): number {
   if (depth === 0) {
     return evaluateBoard(board, player)
   }
 
   const currentPlayer: Player = maximizingPlayer ? player : (player === 1 ? 2 : 1)
-  const moves = generateMoves(board, currentPlayer)
+  const moves = generateMoves(board, currentPlayer, initialBoard)
 
   if (moves.length === 0) {
     return evaluateBoard(board, player)
@@ -112,7 +113,7 @@ function minimax(
     let maxEval = -Infinity
     for (const move of moves) {
       const newBoard = applyMove(board, move)
-      const evalScore = minimax(newBoard, depth - 1, false, player, alpha, beta)
+      const evalScore = minimax(newBoard, depth - 1, false, player, alpha, beta, initialBoard)
       maxEval = Math.max(maxEval, evalScore)
       alpha = Math.max(alpha, evalScore)
       if (beta <= alpha) break // Alpha-beta pruning
@@ -122,7 +123,7 @@ function minimax(
     let minEval = Infinity
     for (const move of moves) {
       const newBoard = applyMove(board, move)
-      const evalScore = minimax(newBoard, depth - 1, true, player, alpha, beta)
+      const evalScore = minimax(newBoard, depth - 1, true, player, alpha, beta, initialBoard)
       minEval = Math.min(minEval, evalScore)
       beta = Math.min(beta, evalScore)
       if (beta <= alpha) break // Alpha-beta pruning
@@ -132,9 +133,9 @@ function minimax(
 }
 
 // AIが最善手を選択
-export function getBestMove(board: BoardState, player: Player, difficulty: 'easy' | 'medium' | 'hard' = 'medium'): Move | null {
+export function getBestMove(board: BoardState, player: Player, difficulty: 'easy' | 'medium' | 'hard' = 'medium', initialBoard?: BoardState): Move | null {
   const depth = difficulty === 'easy' ? 1 : difficulty === 'medium' ? 2 : 3
-  const moves = generateMoves(board, player)
+  const moves = generateMoves(board, player, initialBoard)
 
   if (moves.length === 0) return null
 
@@ -148,7 +149,7 @@ export function getBestMove(board: BoardState, player: Player, difficulty: 'easy
 
   for (const move of moves) {
     const newBoard = applyMove(board, move)
-    const moveValue = minimax(newBoard, depth - 1, false, player)
+    const moveValue = minimax(newBoard, depth - 1, false, player, -Infinity, Infinity, initialBoard)
 
     if (moveValue > bestValue) {
       bestValue = moveValue
@@ -160,8 +161,8 @@ export function getBestMove(board: BoardState, player: Player, difficulty: 'easy
 }
 
 // ランダムな手を選択（最も簡単なAI）
-export function getRandomMove(board: BoardState, player: Player): Move | null {
-  const moves = generateMoves(board, player)
+export function getRandomMove(board: BoardState, player: Player, initialBoard?: BoardState): Move | null {
+  const moves = generateMoves(board, player, initialBoard)
   if (moves.length === 0) return null
   return moves[Math.floor(Math.random() * moves.length)]
 }

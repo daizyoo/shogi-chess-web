@@ -7,14 +7,21 @@ import { PIECE_NAMES, SHOGI_PIECES, CHESS_PIECES } from '@/lib/board/types'
 interface BoardEditorProps {
   board: string[]
   onChange: (newBoard: string[]) => void
+  pawnInitialPositions?: Set<string>  // Set of "row-col" keys for pawns at initial positions
+  onPawnInitialPositionsChange?: (positions: Set<string>) => void
 }
 
 type PieceMode = 'shogi' | 'chess' | 'both'
 
-export default function BoardEditor({ board, onChange }: BoardEditorProps) {
+export default function BoardEditor({ board, onChange, pawnInitialPositions, onPawnInitialPositionsChange }: BoardEditorProps) {
   const [selectedPiece, setSelectedPiece] = useState<PieceSymbol | null>(null)
   const [isEraser, setIsEraser] = useState(false)
   const [pieceMode, setPieceMode] = useState<PieceMode>('both')
+
+  // Local pawn initial positions if not provided from parent
+  const [localPawnPositions, setLocalPawnPositions] = useState<Set<string>>(new Set())
+  const effectivePawnPositions = pawnInitialPositions || localPawnPositions
+  const setPawnPositions = onPawnInitialPositionsChange || setLocalPawnPositions
 
   // 王/Kingの数をカウント
   const countKings = (currentBoard: string[]): { p1Kings: number, p2Kings: number } => {
@@ -36,9 +43,33 @@ export default function BoardEditor({ board, onChange }: BoardEditorProps) {
     const newBoard = [...board]
     const cells = newBoard[row].split(/\s+/)
     const currentPiece = cells[col]
+    const posKey = `${row}-${col}`
+
+    // チェスポーン（CP/cp）をクリックした場合のトグル処理
+    // 1. 何も選択していない状態でポーンをクリック
+    // 2. ポーンを選択中に、同じプレイヤーのポーンをクリック
+    const isCurrentChessPawn = currentPiece === 'CP' || currentPiece === 'cp'
+    const isSelectedChessPawn = selectedPiece === 'CP' || selectedPiece === 'cp'
+
+    if (isCurrentChessPawn && (!selectedPiece || isSelectedChessPawn)) {
+      const newPawnPositions = new Set(effectivePawnPositions)
+      if (newPawnPositions.has(posKey)) {
+        // 初期位置マーカーを解除
+        newPawnPositions.delete(posKey)
+      } else {
+        // 初期位置マーカーを追加
+        newPawnPositions.add(posKey)
+      }
+      setPawnPositions(newPawnPositions)
+      return // トグルのみで終了
+    }
 
     if (isEraser) {
       cells[col] = '.'
+      // 消去時は初期位置マーカーも削除
+      const newPawnPositions = new Set(effectivePawnPositions)
+      newPawnPositions.delete(posKey)
+      setPawnPositions(newPawnPositions)
     } else if (selectedPiece) {
       // 王/Kingの配置制限チェック
       if (selectedPiece === 'K' || selectedPiece === 'CK' ||
@@ -68,6 +99,18 @@ export default function BoardEditor({ board, onChange }: BoardEditorProps) {
       }
 
       cells[col] = selectedPiece
+
+      // チェスポーンを新しく配置する場合、デフォルトで初期位置としてマーク
+      if (selectedPiece === 'CP' || selectedPiece === 'cp') {
+        const newPawnPositions = new Set(effectivePawnPositions)
+        newPawnPositions.add(posKey)
+        setPawnPositions(newPawnPositions)
+      } else {
+        // 他の駒を配置する場合は初期位置マーカーを削除
+        const newPawnPositions = new Set(effectivePawnPositions)
+        newPawnPositions.delete(posKey)
+        setPawnPositions(newPawnPositions)
+      }
     }
 
     newBoard[row] = cells.join(' ')
@@ -261,6 +304,8 @@ export default function BoardEditor({ board, onChange }: BoardEditorProps) {
               const piece = getCellPiece(row, col)
               const isEmpty = piece === '.'
               const isPlayer1 = isPlayer1Piece(piece)
+              const posKey = `${row}-${col}`
+              const isInitialPawn = effectivePawnPositions.has(posKey) && (piece === 'CP' || piece === 'cp')
 
               return (
                 <button
@@ -270,7 +315,7 @@ export default function BoardEditor({ board, onChange }: BoardEditorProps) {
                     width: '60px',
                     height: '60px',
                     border: '1px solid #999',
-                    backgroundColor: 'transparent',
+                    backgroundColor: isInitialPawn ? '#e3f2fd' : 'transparent',  // 初期位置ポーンは青色
                     cursor: 'pointer',
                     fontSize: '32px',
                     fontWeight: 'bold',
@@ -282,10 +327,12 @@ export default function BoardEditor({ board, onChange }: BoardEditorProps) {
                     padding: 0,
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)'
+                    if (!isInitialPawn) {
+                      e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)'
+                    }
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent'
+                    e.currentTarget.style.backgroundColor = isInitialPawn ? '#e3f2fd' : 'transparent'
                   }}
                 >
                   {getPieceDisplay(piece)}

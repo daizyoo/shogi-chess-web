@@ -25,6 +25,7 @@ function BoardEditorContent() {
   const [isPublic, setIsPublic] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [pawnInitialPositions, setPawnInitialPositions] = useState<Set<string>>(new Set())
 
   const [player1Config, setPlayer1Config] = useState({
     useHandPieces: true,
@@ -102,6 +103,17 @@ function BoardEditorContent() {
             })
           }
         }
+
+        // pawnInitialPositionsを読み込み
+        if (boardData.pawnInitialPositions) {
+          const positions = new Set<string>()
+          boardData.pawnInitialPositions.forEach((pos: { row: number; col: number }) => {
+            positions.add(`${pos.row}-${pos.col}`)
+          })
+          setPawnInitialPositions(positions)
+        } else {
+          setPawnInitialPositions(new Set())
+        }
       }
     } catch (error: any) {
       console.error('Failed to load board:', error)
@@ -166,6 +178,10 @@ function BoardEditorContent() {
         player1: player1PromotionZones,
         player2: player2PromotionZones,
       },
+      pawnInitialPositions: Array.from(pawnInitialPositions).map(key => {
+        const [row, col] = key.split('-').map(Number)
+        return { row, col }
+      }),
     }
     const json = JSON.stringify(data, null, 2)
     const blob = new Blob([json], { type: 'application/json' })
@@ -195,6 +211,10 @@ function BoardEditorContent() {
           player1: player1PromotionZones,
           player2: player2PromotionZones,
         },
+        pawnInitialPositions: Array.from(pawnInitialPositions).map(key => {
+          const [row, col] = key.split('-').map(Number)
+          return { row, col }
+        }),
       }
 
       if (boardId) {
@@ -298,6 +318,17 @@ function BoardEditorContent() {
             shogi: { rows: 3, fromTop: false },
             chess: { rows: 1, fromTop: false },
           })
+        }
+
+        // Load pawnInitialPositions
+        if (data.pawnInitialPositions) {
+          const positions = new Set<string>()
+          data.pawnInitialPositions.forEach((pos) => {
+            positions.add(`${pos.row}-${pos.col}`)
+          })
+          setPawnInitialPositions(positions)
+        } else {
+          setPawnInitialPositions(new Set())
         }
       } catch (error) {
         alert('Failed to import JSON file')
@@ -686,9 +717,14 @@ function BoardEditorContent() {
       {/* Interactive Board Editor */}
       <div className="card">
         <h3 style={{ marginBottom: 'var(--spacing-sm)' }}>Board Editor</h3>
+        <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: 'var(--spacing-sm)' }}>
+          チェスポーン（CP/cp）をクリックすると、2マス移動可能な初期位置としてマーク/解除できます（青色表示）
+        </p>
         <BoardEditor
           board={board}
           onChange={setBoard}
+          pawnInitialPositions={pawnInitialPositions}
+          onPawnInitialPositionsChange={setPawnInitialPositions}
         />
       </div>
 

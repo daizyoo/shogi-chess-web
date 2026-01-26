@@ -56,6 +56,7 @@ export interface GameState {
     player2: PieceTypePromotionZones;
   };
   lastMove?: Move; // 最後に指された手（ハイライト表示用）
+  initialBoard?: BoardState; // 初期盤面（カスタムボードのポーン判定用）
 }
 
 // 盤の種類
