@@ -60,8 +60,6 @@ export default function RoomList() {
       }
     }
 
-    let timeoutId: NodeJS.Timeout
-
     const fetchWithRetry = async () => {
       if (!isMounted) return
 
@@ -88,7 +86,7 @@ export default function RoomList() {
     }
 
     // タイムアウト設定（10秒経ってもフェッチが完了しない場合エラー）
-    timeoutId = setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       if (isMounted) {
         setLoading(false)
         setErrorState(true)
