@@ -7,7 +7,7 @@ import { getSupabaseClient } from '@/lib/supabase/client'
 import { isCheckmate } from '@/lib/game/checkmate'
 import Board from '@/components/Board'
 import HandPieces from '@/components/HandPieces'
-import type { GameState, Position } from '@/lib/types'
+import type { GameState, Position, Move, PieceType, Player } from '@/lib/types'
 
 export default function RoomPage() {
   const params = useParams()
@@ -55,13 +55,41 @@ export default function RoomPage() {
         .single() as any
 
       if (state) {
+        // 最新の手を取得
+        const { data: lastMoveData } = await supabase
+          .from('moves')
+          .select('*')
+          .eq('room_id', roomId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single() as any
+
+        let lastMove: Move | undefined
+        if (lastMoveData) {
+          lastMove = {
+            from: lastMoveData.from_row !== null ? { row: lastMoveData.from_row, col: lastMoveData.from_col } : null,
+            to: { row: lastMoveData.to_row, col: lastMoveData.to_col },
+            piece: {
+              type: lastMoveData.piece_type as PieceType,
+              player: lastMoveData.player as Player,
+              promoted: lastMoveData.promoted
+            },
+            captured: lastMoveData.captured_piece ? {
+              type: lastMoveData.captured_piece as PieceType,
+              player: lastMoveData.player === 1 ? 2 : 1
+            } : undefined,
+            promote: lastMoveData.promoted
+          }
+        }
+
         setGameState({
           board: state.board as any,
           hands: state.hands as any,
           currentTurn: room.current_turn || 1,
-          moves: [],
+          moves: [], // 履歴は空でも良いが、lastMoveは設定する
           status: state.status as any,
           winner: state.winner as any,
+          lastMove,
         })
       } else {
         // Game state not found, but room exists. This might be a new room.

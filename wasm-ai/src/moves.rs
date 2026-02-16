@@ -62,7 +62,102 @@ fn is_legal_move(board: &Board, mv: &Move) -> bool {
     // Check if our king is in check after the move
     // Note: current_player has switched after make_move, so we check the previous player
     let player_after_move = 3 - test_board.current_player;
+    // Check if our king is in check after the move
+    // Note: current_player has switched after make_move, so we check the previous player
+    let player_after_move = 3 - test_board.current_player;
     !is_in_check(&test_board, player_after_move)
+}
+
+/// Check if a pawn drop is legal (Nifu rule)
+fn is_nifu(board: &Board, col: usize, player: Player) -> bool {
+    for row in 0..board.size() {
+        if let Some(piece) = board.get(Position { row, col }) {
+            if piece.player == player && piece.piece_type == PieceType::Pawn && !piece.promoted {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Generate drop moves for pieces in hand
+fn generate_drop_moves(board: &Board, moves: &mut Vec<Move>) {
+    let hand_index = (board.current_player - 1) as usize;
+    let hand = &board.hands[hand_index];
+
+    if hand.is_empty() {
+        return;
+    }
+
+    // Get unique piece types from hand to avoid duplicate moves
+    let mut unique_pieces = hand.clone();
+    unique_pieces.sort_by(|a, b| {
+        let a_val = a as *const PieceType as usize;
+        let b_val = b as *const PieceType as usize;
+        a_val.cmp(&b_val) // Simple comparison based on enum discriminant/value if possible, or just dedup manually
+    });
+    // PieceType implements PartialEq, Eq, so we can sort and dedup if it implemented Ord.
+    // Since it doesn't implement Ord, let's just use a simple vec and check for duplicates manually or use a HashSet if possible.
+    // Or simpler: iterate 0..board.size()^2, and for each empty square, try dropping each unique piece type.
+
+    // Better approach: Get unique types first
+    let mut available_types = Vec::new();
+    for &pt in hand {
+        if !available_types.contains(&pt) {
+            available_types.push(pt);
+        }
+    }
+
+    for &piece_type in &available_types {
+        for row in 0..board.size() {
+            for col in 0..board.size() {
+                let pos = Position { row, col };
+
+                // Square must be empty
+                if board.get(pos).is_some() {
+                    continue;
+                }
+
+                // Rule checks
+                match piece_type {
+                    PieceType::Pawn => {
+                        // Nifu check
+                        if is_nifu(board, col, board.current_player) {
+                            continue;
+                        }
+
+                        // No dropping on the last rank (where it must promote)
+                        // Player 1 (sente) moves up (decreasing row indices), so rank 0 is illegal
+                        // Player 2 (gote) moves down (increasing row indices), so rank size-1 is illegal
+                        if (board.current_player == 1 && row == 0)
+                            || (board.current_player == 2 && row == board.size() - 1)
+                        {
+                            continue;
+                        }
+                    }
+                    PieceType::Lance => {
+                        // No dropping on the last rank
+                        if (board.current_player == 1 && row == 0)
+                            || (board.current_player == 2 && row == board.size() - 1)
+                        {
+                            continue;
+                        }
+                    }
+                    PieceType::Knight => {
+                        // No dropping on the last two ranks
+                        if (board.current_player == 1 && row <= 1)
+                            || (board.current_player == 2 && row >= board.size() - 2)
+                        {
+                            continue;
+                        }
+                    }
+                    _ => {}
+                }
+
+                add_drop_move(moves, pos, piece_type);
+            }
+        }
+    }
 }
 
 /// Generate all legal moves for the current player
@@ -80,8 +175,8 @@ pub fn generate_moves(board: &Board) -> Vec<Move> {
         }
     }
 
-    // TODO: Add drop moves for pieces in hand
-    // For now, focusing on basic piece movement
+    // Add drop moves for pieces in hand
+    generate_drop_moves(board, &mut moves);
 
     // Filter out illegal moves (that would put king in check)
     moves
@@ -382,11 +477,22 @@ fn can_move_to(board: &Board, pos: Position, player: Player) -> bool {
 
 fn add_move(moves: &mut Vec<Move>, from: Position, to: Position, piece: &Piece, promotion: bool) {
     moves.push(Move {
-        from,
+        from: Some(from),
         to,
         piece_type: piece.piece_type,
         promoted: piece.promoted,
         promotion,
+        captured: None,
+    });
+}
+
+fn add_drop_move(moves: &mut Vec<Move>, to: Position, piece_type: PieceType) {
+    moves.push(Move {
+        from: None,
+        to,
+        piece_type,
+        promoted: false,
+        promotion: false,
         captured: None,
     });
 }

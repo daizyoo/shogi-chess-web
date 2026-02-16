@@ -59,7 +59,7 @@ pub struct Position {
 /// Move representation
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Move {
-    pub from: Position,
+    pub from: Option<Position>,
     pub to: Position,
     pub piece_type: PieceType,
     pub promoted: bool,
@@ -86,7 +86,7 @@ pub struct HandPieces {
 /// Output format to JavaScript
 #[derive(Debug, Serialize)]
 pub struct MoveOutput {
-    pub from: Position,
+    pub from: Option<Position>,
     pub to: Position,
     #[serde(rename = "pieceType")]
     pub piece_type: PieceType,

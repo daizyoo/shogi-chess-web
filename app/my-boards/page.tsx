@@ -15,40 +15,73 @@ interface SavedBoard {
 
 export default function MyBoardsPage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [boards, setBoards] = useState<SavedBoard[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
   useEffect(() => {
+    let isMounted = true
+
+    // 認証チェック中は何もしない（認証完了まで待つ）
+    if (authLoading) {
+      return
+    }
+
+    // 認証完了後、ログインしていない場合のみリダイレクト
     if (!user) {
+      setLoading(false)
       router.push('/login')
       return
     }
-    fetchMyBoards()
-  }, [user])
 
-  const fetchMyBoards = async () => {
-    if (!user) return
+    const loadBoards = async () => {
+      if (!isMounted) return
 
-    setLoading(true)
-    try {
-      const supabase = getSupabaseClient()
-      const { data, error } = await supabase
-        .from('custom_boards')
-        .select('id, name, board_data, is_public, created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+      setLoading(true)
+      setError(null)
+      try {
+        const supabase = getSupabaseClient()
+        const { data, error } = await supabase
+          .from('custom_boards')
+          .select('id, name, board_data, is_public, created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
 
-      if (error) throw error
-      setBoards(data || [])
-    } catch (error) {
-      console.error('Failed to fetch boards:', error)
-      alert('ボード一覧の取得に失敗しました')
-    } finally {
-      setLoading(false)
+        if (error) throw error
+
+        if (isMounted) {
+          setBoards(data || [])
+          setLoading(false)
+        }
+      } catch (error) {
+        console.error('Failed to fetch boards:', error)
+        if (isMounted) {
+          setLoading(false)
+          if ((error as any)?.name !== 'AbortError') {
+            setError('ボード一覧の取得に失敗しました')
+          }
+        }
+      }
     }
-  }
+
+    loadBoards()
+
+    // タイムアウト設定（5秒経ってもフェッチが完了しない場合は自動リロード）
+    const timeoutId = setTimeout(() => {
+      if (isMounted && loading) {
+        console.warn('読み込みタイムアウト - 自動リロード')
+        window.location.reload()
+      }
+    }, 5000)
+
+    return () => {
+      isMounted = false
+      setLoading(false)
+      clearTimeout(timeoutId)
+    }
+  }, [user, authLoading, router])
 
   const handleDelete = async (id: string) => {
     const supabase = getSupabaseClient()
@@ -72,7 +105,8 @@ export default function MyBoardsPage() {
 
       alert('ボードを削除しました')
       setDeleteConfirm(null)
-      fetchMyBoards()
+      // ステートから削除されたボードを除外
+      setBoards(boards.filter(board => board.id !== id))
     } catch (error) {
       console.error('Delete error:', error)
       alert('削除に失敗しました')
@@ -102,7 +136,10 @@ export default function MyBoardsPage() {
       }
 
       alert(`ボードを${!currentPublic ? '公開' : '非公開'}にしました`)
-      fetchMyBoards()
+      // ステートを更新してis_publicを切り替え
+      setBoards(boards.map(board =>
+        board.id === id ? { ...board, is_public: !currentPublic } : board
+      ))
     } catch (error) {
       console.error('Toggle error:', error)
       alert('更新に失敗しました')

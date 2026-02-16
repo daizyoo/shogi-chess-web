@@ -23,10 +23,13 @@ struct SearchState {
     timed_out: bool,
 }
 
+const BOARD_WIDTH: usize = 9;
+const MAX_SQUARES: usize = BOARD_WIDTH * BOARD_WIDTH;
+
 impl SearchState {
     fn new(config: &AIConfig) -> Self {
-        // Initialize history table for 8x8 board (64 squares)
-        let history = vec![vec![0; 64]; 64];
+        // Initialize history table for 9x9 board (81 squares) to be safe for both Chess and Shogi
+        let history = vec![vec![0; MAX_SQUARES]; MAX_SQUARES];
 
         SearchState {
             tt: TranspositionTable::new(config.tt_size_mb),
@@ -378,18 +381,21 @@ fn alpha_beta(
 
         if alpha >= beta {
             // Beta cutoff - update history and killer moves
-            let from_idx = m.from.row * 8 + m.from.col;
-            let to_idx = m.to.row * 8 + m.to.col;
+            // Update history heuristic (only for board moves)
+            if let Some(from_pos) = m.from {
+                let from_idx = from_pos.row * BOARD_WIDTH + from_pos.col;
+                let to_idx = m.to.row * BOARD_WIDTH + m.to.col;
 
-            // Update history heuristic (bonus based on depth squared)
-            let bonus = (depth as i32) * (depth as i32);
-            state.history[from_idx][to_idx] += bonus;
+                // Update history heuristic (bonus based on depth squared)
+                let bonus = (depth as i32) * (depth as i32);
+                state.history[from_idx][to_idx] += bonus;
 
-            // Decay history scores to prevent overflow and favor recent history
-            if state.history[from_idx][to_idx] > 10000 {
-                for row in state.history.iter_mut() {
-                    for val in row.iter_mut() {
-                        *val /= 2;
+                // Decay history scores to prevent overflow and favor recent history
+                if state.history[from_idx][to_idx] > 10000 {
+                    for row in state.history.iter_mut() {
+                        for val in row.iter_mut() {
+                            *val /= 2;
+                        }
                     }
                 }
             }
@@ -534,10 +540,17 @@ fn order_moves(
         }
 
         // History heuristic - prioritize moves that have been good before
-        let from_idx = m.from.row * 8 + m.from.col;
-        let to_idx = m.to.row * 8 + m.to.col;
-        let history_score = state.history[from_idx][to_idx];
-        score -= history_score;
+        if let Some(from_pos) = m.from {
+            let from_idx = from_pos.row * BOARD_WIDTH + from_pos.col;
+            let to_idx = m.to.row * BOARD_WIDTH + m.to.col;
+            let history_score = state.history[from_idx][to_idx];
+            score -= history_score;
+        } else {
+            // Slight penalty for drop moves to prefer board moves when equal
+            // Or maybe bonus? Drops are often strong.
+            // For now, let's treat them as neutral or slight bonus
+            score -= 1000;
+        }
 
         // Promotions
         if m.promoted {

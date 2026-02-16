@@ -65,20 +65,46 @@ impl Board {
             self.hands[(self.current_player - 1) as usize].push(captured_type);
         }
 
-        // Move piece
-        if let Some(from_cell) = self.get_mut(m.from) {
-            let mut piece = from_cell
-                .take()
-                .ok_or_else(|| to_js_error("No piece at from position"))?;
+        // Move piece or Drop piece
+        if let Some(from_pos) = m.from {
+            // Normal move
+            if let Some(from_cell) = self.get_mut(from_pos) {
+                let mut piece = from_cell
+                    .take()
+                    .ok_or_else(|| to_js_error("No piece at from position"))?;
 
-            // Apply promotion if needed
-            if m.promotion {
-                piece.promoted = true;
+                // Apply promotion if needed
+                if m.promotion {
+                    piece.promoted = true;
+                }
+
+                *self
+                    .get_mut(m.to)
+                    .ok_or_else(|| to_js_error("Invalid to position"))? = Some(piece);
             }
+        } else {
+            // Drop move
+            let piece_type = m.piece_type;
+            let hand_index = (self.current_player - 1) as usize;
 
-            *self
-                .get_mut(m.to)
-                .ok_or_else(|| to_js_error("Invalid to position"))? = Some(piece);
+            // Check if player has the piece in hand
+            if let Some(idx) = self.hands[hand_index].iter().position(|&p| p == piece_type) {
+                self.hands[hand_index].remove(idx);
+
+                // Place piece on board
+                *self
+                    .get_mut(m.to)
+                    .ok_or_else(|| to_js_error("Invalid to position"))? = Some(Piece {
+                    piece_type,
+                    player: self.current_player,
+                    promoted: false,
+                });
+            } else {
+                return Err(to_js_error(&format!(
+                    "Player {} does not have {:?} in hand",
+                    self.current_player, piece_type
+                )));
+            }
         }
 
         // Switch player
@@ -89,20 +115,32 @@ impl Board {
 
     /// Undo a move
     pub fn unmake_move(&mut self, m: &Move, captured: Option<PieceType>) -> Result<(), JsValue> {
-        // Move piece back
-        if let Some(to_cell) = self.get_mut(m.to) {
-            let mut piece = to_cell
-                .take()
-                .ok_or_else(|| to_js_error("No piece at to position"))?;
+        // Move piece back or remove dropped piece
+        if let Some(from_pos) = m.from {
+            // Normal move undo
+            if let Some(to_cell) = self.get_mut(m.to) {
+                let mut piece = to_cell
+                    .take()
+                    .ok_or_else(|| to_js_error("No piece at to position"))?;
 
-            // Undo promotion
-            if m.promotion {
-                piece.promoted = m.promoted;
+                // Undo promotion
+                if m.promotion {
+                    piece.promoted = m.promoted;
+                }
+
+                *self
+                    .get_mut(from_pos)
+                    .ok_or_else(|| to_js_error("Invalid from position"))? = Some(piece);
+            }
+        } else {
+            // Drop move undo
+            // Remove piece from board
+            if self.get_mut(m.to).and_then(|c| c.take()).is_none() {
+                return Err(to_js_error("No piece at to position for undo drop"));
             }
 
-            *self
-                .get_mut(m.from)
-                .ok_or_else(|| to_js_error("Invalid from position"))? = Some(piece);
+            // Return piece to hand
+            self.hands[(self.current_player - 1) as usize].push(m.piece_type);
         }
 
         // Restore captured piece

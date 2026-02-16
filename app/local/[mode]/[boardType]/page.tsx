@@ -163,10 +163,15 @@ export default function LocalGamePage() {
       try {
         const aiMove = await aiServiceRef.current?.getBestMove(gameState.board, 2, gameState.initialBoard)
 
-        if (aiMove && aiMove.from) {
-          // AIからの呼び出しであることを明示
-          executeMove(aiMove.from, aiMove.to, true)
-        } else if (aiMove === null) {
+        if (aiMove) {
+          if (aiMove.from) {
+            // AIからの呼び出しであることを明示
+            executeMove(aiMove.from, aiMove.to, true)
+          } else {
+            // 持ち駒打ち
+            executeDrop(aiMove.to, aiMove.piece.type, true)
+          }
+        } else {
           // AI has no legal moves - check for checkmate or stalemate
           const aiIsInCheckmate = isCheckmate(gameState.board, 2)
 
@@ -364,15 +369,18 @@ export default function LocalGamePage() {
     executeMove(from, to, false)
   }
 
-  const handleDrop = (row: number, col: number) => {
-    if (!gameState || !selectedHandPiece) return
+  /**
+   * 持ち駒を打つ処理（共通化）
+   */
+  const executeDrop = (to: Position, pieceType: PieceType, fromAI: boolean = false) => {
+    if (!gameState) return
 
     // PvAモードでAIのターン中にプレイヤーが操作しようとした場合は拒否
-    if (mode === 'pva' && gameState.currentTurn === 2) return
+    if (!fromAI && mode === 'pva' && gameState.currentTurn === 2) return
 
     const newBoard = gameState.board.map((r) => [...r])
-    newBoard[row][col] = {
-      type: selectedHandPiece,
+    newBoard[to.row][to.col] = {
+      type: pieceType,
       player: gameState.currentTurn,
     }
 
@@ -381,33 +389,45 @@ export default function LocalGamePage() {
       [gameState.currentTurn]: useHandPiece(
         gameState.hands[gameState.currentTurn],
         gameState.currentTurn,
-        selectedHandPiece
+        pieceType
       ),
     }
 
     const move: Move = {
       from: null,
-      to: { row, col },
+      to,
       piece: {
-        type: selectedHandPiece,
+        type: pieceType,
         player: gameState.currentTurn,
       },
     }
 
     const nextTurn: Player = gameState.currentTurn === 1 ? 2 : 1
 
+    // 詰み判定
+    // 持ち駒打ちは即座にチェックメイトになる場合もある（ただし打ち歩詰め等はlegalMovesで排除されているはず）
+    const isGameOver = isCheckmate(newBoard, nextTurn)
+
     setGameState({
       board: newBoard,
       hands: newHands,
       currentTurn: nextTurn,
       moves: [...gameState.moves, move],
-      status: 'playing',
+      status: isGameOver ? 'finished' : 'playing',
+      winner: isGameOver ? gameState.currentTurn : undefined,
       promotionZones: gameState.promotionZones, // Preserve promotion zones
       initialBoard: gameState.initialBoard, // Preserve initialBoard
       lastMove: move, // 最後の手を記録
     })
 
-    setSelectedHandPiece(null)
+    if (!fromAI) {
+      setSelectedHandPiece(null)
+    }
+  }
+
+  const handleDrop = (row: number, col: number) => {
+    if (!selectedHandPiece) return
+    executeDrop({ row, col }, selectedHandPiece, false)
   }
 
   const handleSelectHandPiece = (pieceType: PieceType) => {

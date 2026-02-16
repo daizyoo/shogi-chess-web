@@ -18,69 +18,86 @@ interface Room {
 
 export default function RoomList() {
   const [rooms, setRooms] = useState<Room[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [errorState, setErrorState] = useState(false)
   const router = useRouter()
 
-  const fetchRooms = async () => {
-    try {
-      const supabase = getSupabaseClient()
-      const { data, error } = await supabase
-        .from('rooms')
-        .select('*')
-        .in('status', ['waiting', 'playing'])
-        .order('created_at', { ascending: false })
-        .limit(20)
-
-      if (error) throw error
-      setRooms(data || [])
-      setErrorState(false) // 成功したらエラー状態をクリア
-    } catch (error: any) {
-      // AbortErrorは無視（ページ遷移などで操作がキャンセルされた場合）
-      if (error?.name === 'AbortError' || error?.message?.includes('aborted')) {
-        return
-      }
-      console.error('Error fetching rooms:', error)
-      // リトライ後も失敗した場合のみエラー状態を設定
-      throw error
-    } finally {
-      setLoading(false)
-    }
-  }
 
   useEffect(() => {
+    let isMounted = true
     let retryCount = 0
     const maxRetries = 3
-    let hasFetched = false // フェッチが完了したかどうかを追跡
+
+    const fetchRooms = async () => {
+      if (!isMounted) return
+
+      try {
+        const supabase = getSupabaseClient()
+        const { data, error } = await supabase
+          .from('rooms')
+          .select('*')
+          .in('status', ['waiting', 'playing'])
+          .order('created_at', { ascending: false })
+          .limit(20)
+
+        if (error) throw error
+
+        if (isMounted) {
+          setRooms(data || [])
+          setErrorState(false)
+        }
+      } catch (error: any) {
+        console.error('Error fetching rooms:', error)
+        // AbortErrorを含む全てのエラーでloadingをfalseに
+        // （ただしisMountedの場合のみ）
+        if (isMounted) {
+          setLoading(false)
+        }
+        // AbortError以外はリトライ対象
+        if (error?.name !== 'AbortError' && !error?.message?.includes('aborted')) {
+          throw error
+        }
+      }
+    }
+
+    let timeoutId: NodeJS.Timeout
 
     const fetchWithRetry = async () => {
+      if (!isMounted) return
+
+      setLoading(true)
       try {
         await fetchRooms()
-        hasFetched = true // 成功時にフラグを立てる
+        if (isMounted) {
+          setLoading(false)
+          clearTimeout(timeoutId)
+        }
       } catch (error) {
-        if (retryCount < maxRetries) {
+        if (retryCount < maxRetries && isMounted) {
           retryCount++
           console.log(`Retry fetching rooms (${retryCount}/${maxRetries})`)
           setTimeout(fetchWithRetry, 1000 * retryCount) // 指数バックオフ
         } else {
           // 全てのリトライが失敗した場合
-          hasFetched = true // リトライ完了
-          setErrorState(true)
+          if (isMounted) {
+            setErrorState(true)
+            setLoading(false)
+          }
         }
       }
     }
 
-    // 初回フェッチ
-    fetchWithRetry()
-
     // タイムアウト設定（10秒経ってもフェッチが完了しない場合エラー）
-    const timeoutId = setTimeout(() => {
-      if (!hasFetched) {
+    timeoutId = setTimeout(() => {
+      if (isMounted) {
         setLoading(false)
         setErrorState(true)
         console.warn('Fetch timeout - setting error state')
       }
     }, 10000)
+
+    // 初回フェッチ
+    fetchWithRetry()
 
     // リアルタイム更新を購読
     const supabase = getSupabaseClient()
@@ -94,7 +111,9 @@ export default function RoomList() {
           table: 'rooms',
         },
         () => {
-          fetchRooms()
+          if (isMounted) {
+            fetchRooms()
+          }
         }
       )
       .subscribe((status) => {
@@ -106,6 +125,8 @@ export default function RoomList() {
       })
 
     return () => {
+      isMounted = false
+      setLoading(false)
       clearTimeout(timeoutId)
       channel.unsubscribe()
     }
